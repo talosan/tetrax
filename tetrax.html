@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TETRAX</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+      --font-display: 'Orbitron', 'Courier New', 'Lucida Console', monospace;
+      --font-mono:    'JetBrains Mono', 'Courier New', 'Lucida Console', monospace;
+    }
+
+    :root {
+      --bg:      #080B12;
+      --bg2:     #0E1422;
+      --bg3:     #151D30;
+      --panel:   #121828;
+      --bdr:     rgba(255,255,255,0.10);
+      --bdr2:    rgba(255,255,255,0.20);
+      --accent:  #38BEFF;
+      --orange:  #FF7A3D;
+      --green:   #5EF08A;
+      --red:     #FF4B5C;
+      --white:   #EFF3FF;
+      --mid:     #8FA3C8;
+      --dim:     #3D4F6A;
+    }
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); touch-action:none; }
+    body { font-family:var(--font-mono); color:var(--white); user-select:none; -webkit-tap-highlight-color:transparent; }
+
+    body::after {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:9000;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.05) 3px, rgba(0,0,0,0.05) 4px);
+    }
+    #stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
+    #app { position:relative; z-index:1; width:100%; height:100%; display:flex; flex-direction:column; }
+
+    /* ── SAFE AREA (notch / punch-hole cameras) ── */
+    #app {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    /* ── HEADER ── */
+    #header {
+      flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+      padding:0 clamp(10px,3vw,20px);
+      height: clamp(44px,6vh,58px);
+      background:rgba(12,17,30,0.97); border-bottom:1px solid var(--bdr);
+      transition: border-bottom-color .3s;
+      gap: 8px;
+    }
+    #header.danger { border-bottom-color: rgba(255,75,92,0.6); }
+
+    .logo {
+      font-family:var(--font-display); font-weight:900; letter-spacing:4px;
+      font-size: clamp(14px,3vw,22px);
+      color:var(--accent); text-shadow:0 0 16px rgba(56,190,255,0.5);
+      flex-shrink:0;
+    }
+    .logo em { color:var(--orange); font-style:normal; text-shadow:0 0 16px rgba(255,122,61,0.5); }
+
+    .hstats { display:flex; gap:clamp(8px,2vw,20px); flex:1; justify-content:center; }
+    .hstat  { display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .hstat-lbl {
+      font-size: clamp(6px,1.2vw,9px);
+      letter-spacing:2px; color:var(--mid); text-transform:uppercase; font-family:var(--font-mono);
+    }
+    .hstat-val {
+      font-family:var(--font-display); font-weight:700; color:var(--white);
+      font-size: clamp(11px,2.2vw,16px);
+      min-width: clamp(32px,5vw,52px); text-align:center;
+    }
+    .hstat-val.blue   { color:var(--accent); }
+    .hstat-val.orange { color:var(--orange); }
+    .hstat-val.green  { color:var(--green); }
+
+    .hbtn {
+      width: clamp(32px,4vw,40px); height: clamp(32px,4vw,40px);
+      border-radius:8px;
+      background:var(--panel); border:1px solid var(--bdr2);
+      color:var(--mid); font-size: clamp(13px,2vw,18px);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background .1s, color .1s;
+      touch-action:none; flex-shrink:0;
+    }
+    .hbtn:active { background:rgba(56,190,255,0.15); color:var(--white); }
+    .hbtn.on { color:var(--accent); border-color:var(--accent); }
+    .hbtns { display:flex; gap:6px; flex-shrink:0; }
+
+    /* ── BODY ── */
+    #body { flex:1; min-height:0; display:flex; align-items:stretch; }
+
+    /* ── SIDEBARS ── */
+    .sidebar { flex-shrink:0; width:140px; display:flex; flex-direction:column; gap:10px; padding:10px; overflow-y:auto; background:rgba(12,17,30,0.6); }
+    #sl { border-right:1px solid var(--bdr); }
+    #sr { border-left: 1px solid var(--bdr); }
+
+    .pbox { background:var(--panel); border:1px solid var(--bdr); border-radius:8px; padding:10px 12px; }
+    .pbox-t { font-size:8px; letter-spacing:3px; color:var(--mid); text-transform:uppercase; margin-bottom:8px; }
+
+    .lvl-n { font-family:var(--font-display); font-size:40px; font-weight:900; color:var(--orange); text-shadow:0 0 16px rgba(255,122,61,0.45); text-align:center; line-height:1; }
+    .bar-wrap { height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; margin:8px 0 4px; }
+    .bar { height:100%; background:var(--orange); border-radius:2px; transition:width .35s; box-shadow:0 0 7px var(--orange); }
+    .lvl-hint { font-size:9px; color:var(--mid); text-align:center; }
+    .pips { display:flex; flex-wrap:wrap; gap:3px; justify-content:center; margin-top:8px; }
+    .pip { width:9px; height:9px; border-radius:50%; background:var(--bg3); border:1px solid var(--bdr); transition:all .25s; }
+    .pip.on { background:var(--orange); border-color:var(--orange); box-shadow:0 0 5px var(--orange); }
+
+    .lines-n { font-family:var(--font-display); font-size:28px; font-weight:700; color:var(--green); text-align:center; line-height:1; text-shadow:0 0 12px rgba(94,240,138,0.4); }
+
+    .combo-display {
+      font-family:var(--font-display); font-size:11px; font-weight:700;
+      color:var(--accent); text-align:center; letter-spacing:2px;
+      min-height:18px; transition: color .2s;
+    }
+    .combo-display.hot { color:var(--orange); text-shadow:0 0 8px var(--orange); }
+
+    .next-stack { display:flex; flex-direction:column; gap:4px; }
+
+    .hs-row { display:flex; justify-content:space-between; font-size:10px; padding:3px 0; border-bottom:1px solid var(--bdr); color:var(--mid); }
+    .hs-row:last-child { border:none; }
+    .hs-row.me { color:var(--green); }
+    .hs-rank { font-family:var(--font-display); color:var(--orange); font-size:8px; }
+
+    /* ── CANVAS ── */
+    #canvas-area {
+      flex:1; min-width:0; display:flex; align-items:center; justify-content:center;
+      position:relative; overflow:hidden;
+      background:radial-gradient(ellipse at center, rgba(56,190,255,0.03) 0%, transparent 70%);
+    }
+    #canvas-wrap {
+      position:relative; cursor:crosshair;
+      transition: transform .05s;
+    }
+    #canvas-wrap.shake { animation: shake .25s ease-out; }
+    #canvas-wrap.danger-zone::after {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      border:2px solid rgba(255,75,92,0.5);
+      animation: dangerPulse 0.8s ease-in-out infinite;
+    }
+    #gc {
+      display:block;
+      box-shadow:inset 0 0 40px rgba(0,0,0,0.5);
+      image-rendering:pixelated;
+    }
+
+    @keyframes shake {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(-6px); }
+      40%  { transform: translateX(6px); }
+      60%  { transform: translateX(-4px); }
+      80%  { transform: translateX(4px); }
+      100% { transform: translateX(0); }
+    }
+    @keyframes dangerPulse {
+      0%,100% { opacity:.4; }
+      50%      { opacity:1; }
+    }
+
+    .ghint-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; padding:0 4px; }
+    .ghint-item {
+      display:flex; flex-direction:column; align-items:center; gap:2px;
+      background:rgba(8,11,18,0.88); border:1px solid var(--bdr2);
+      border-radius:6px; padding:5px 10px;
+    }
+    .ghint-icon { font-size:13px; line-height:1.3; color:var(--white); font-family:var(--font-mono); }
+    .ghint-lbl  { font-size:7px; color:var(--mid); letter-spacing:1px; text-transform:uppercase; }
+
+    /* ── OVERLAYS ── */
+    .ovl {
+      position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:rgba(6,9,16,0.93); z-index:50; padding:24px;
+    }
+    .ovl.hidden { display:none; }
+    .ovl-title { font-family:var(--font-display); font-size:clamp(28px,5vw,52px); font-weight:900; letter-spacing:10px; color:var(--accent); text-shadow:0 0 28px rgba(56,190,255,0.5); text-align:center; animation:pulse 2.2s ease-in-out infinite; }
+    .ovl-sub   { font-size:11px; color:var(--mid); letter-spacing:3px; margin:8px 0 28px; text-align:center; }
+    .ovl-score { font-family:var(--font-display); font-size:clamp(20px,4vw,38px); font-weight:700; color:var(--green); margin-bottom:4px; }
+    .ovl-det   { font-size:10px; color:var(--mid); letter-spacing:2px; margin-bottom:24px; }
+
+    #ovl-levelup {
+      position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      pointer-events:none; z-index:60;
+      opacity:0; transition: opacity .15s;
+    }
+    #ovl-levelup.show { opacity:1; }
+    .lvlup-num {
+      font-family:var(--font-display); font-size:clamp(60px,12vw,100px); font-weight:900;
+      color:var(--orange); text-shadow:0 0 40px rgba(255,122,61,0.8);
+      animation: lvlupBounce .6s ease-out;
+      line-height:1;
+    }
+    .lvlup-label {
+      font-family:var(--font-display); font-size:14px; letter-spacing:8px;
+      color:var(--mid); margin-top:4px;
+    }
+    @keyframes lockFlashAnim {
+      0%   { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.15); }
+    }
+
+    @keyframes lvlupBounce {
+      0%   { transform: scale(0.3); opacity:0; }
+      60%  { transform: scale(1.15); opacity:1; }
+      100% { transform: scale(1); }
+    }
+
+    .btn {
+      font-family:var(--font-display); font-size:12px; font-weight:700; letter-spacing:4px;
+      padding:13px 40px; margin:5px; background:transparent;
+      border:1px solid var(--accent); color:var(--accent);
+      cursor:pointer; text-transform:uppercase; border-radius:4px;
+      transition:background .12s, color .12s; min-width:200px; min-height:48px;
+    }
+    .btn:active { background:var(--accent); color:var(--bg); box-shadow:0 0 18px rgba(56,190,255,0.45); }
+    .btn.o { border-color:var(--orange); color:var(--orange); }
+    .btn.o:active { background:var(--orange); color:var(--bg); }
+
+    /* ── TOUCH BAR ── */
+    #touch-bar {
+      flex-shrink:0; display:flex; align-items:center; justify-content:center;
+      gap:6px; padding:7px 12px;
+      background:rgba(12,17,30,0.97); border-top:1px solid var(--bdr);
+      transition:max-height .3s, padding .3s, opacity .3s;
+      overflow:hidden;
+    }
+    #touch-bar.hidden { max-height:0 !important; padding:0 !important; opacity:0; }
+
+    .tbtn {
+      height:50px; min-width:50px;
+      background:var(--panel); border:1px solid var(--bdr2); border-bottom:2px solid var(--bdr2);
+      border-radius:8px; color:var(--white); font-size:20px;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; touch-action:none; transition:background .08s, transform .08s;
+      padding:0 8px;
+    }
+    .tbtn:active { background:rgba(56,190,255,0.2); transform:scale(0.93); }
+    .tbtn.accent { color:var(--accent); border-color:rgba(56,190,255,0.35); }
+    .tbtn.orange { color:var(--orange); border-color:rgba(255,122,61,0.35); }
+    .tbtn-drop {
+      flex:1; height:50px;
+      background:var(--panel); border:1px solid rgba(56,190,255,0.3); border-bottom:2px solid rgba(56,190,255,0.3);
+      border-radius:8px; color:var(--accent);
+      font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:3px;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; touch-action:none; transition:background .08s;
+    }
+    .tbtn-drop:active { background:rgba(56,190,255,0.2); transform:scale(0.97); }
+
+    /* ── PORTRAIT ── */
+    body.is-portrait .sidebar { display:none; }
+    body.is-portrait #info-strip { display:flex; }
+    body.is-portrait #ctrl-box { display:none; }
+    body.is-portrait #canvas-area { justify-content:center; align-items:center; }
+    body.is-portrait #body { justify-content:center; }
+
+    body.is-portrait.is-wide #info-strip .pbox { flex-shrink:0; min-width:96px; }
+
+    body.is-portrait.is-narrow #header { padding:0 10px; height:44px; }
+    body.is-portrait.is-narrow .logo { font-size:16px; letter-spacing:3px; }
+    body.is-portrait.is-narrow .hstat-lbl { font-size:7px; letter-spacing:1px; }
+    body.is-portrait.is-narrow .hstat-val { font-size:12px; min-width:36px; }
+    body.is-portrait.is-narrow .hstats { gap:10px; }
+    body.is-portrait.is-narrow .hbtn { width:32px; height:32px; font-size:14px; }
+    body.is-portrait.is-narrow #info-strip { padding:4px 6px; gap:4px; flex-wrap:nowrap; }
+    body.is-portrait.is-narrow #info-strip .pbox { flex-shrink:1; flex-grow:1; flex-basis:0; min-width:0; padding:5px 6px; }
+    body.is-portrait.is-narrow #info-strip .pbox-t { font-size:6px; letter-spacing:1px; margin-bottom:4px; }
+    body.is-portrait.is-narrow .lvl-n { font-size:22px !important; }
+    body.is-portrait.is-narrow .lines-n { font-size:18px !important; }
+    body.is-portrait.is-narrow .lvl-hint { font-size:8px; }
+    body.is-portrait.is-narrow #hscores-p-wrap { display:none !important; }
+    body.is-portrait.is-narrow #nc-p, body.is-portrait.is-narrow #hc-p { width:70px !important; height:44px !important; }
+    body.is-portrait.is-narrow #touch-bar { gap:4px; padding:5px 6px; }
+    body.is-portrait.is-narrow .tbtn { height:44px; min-width:0; flex:1; font-size:18px; padding:0 2px; }
+    body.is-portrait.is-narrow .tbtn-drop { height:44px; font-size:10px; letter-spacing:1px; flex:2; }
+
+    /* ── FX ── */
+    .clearfx {
+      position:absolute; left:0; right:0; pointer-events:none;
+      animation:clearA .4s ease-out forwards;
+    }
+    @keyframes clearA {
+      0%   { opacity:1; background:rgba(56,190,255,0.5); transform:scaleX(1); }
+      60%  { opacity:1; background:rgba(255,255,255,0.7); transform:scaleX(1); }
+      100% { opacity:0; transform:scaleX(0); }
+    }
+
+    .particle {
+      position:absolute; pointer-events:none; border-radius:50%;
+      animation:particleFly var(--dur,0.7s) ease-out forwards;
+      z-index:100;
+    }
+    @keyframes particleFly {
+      0%   { opacity:1; transform:translate(0,0) scale(1); }
+      100% { opacity:0; transform:translate(var(--tx,0px), var(--ty,-60px)) scale(0); }
+    }
+
+    .spop {
+      position:absolute; pointer-events:none;
+      font-family:var(--font-display); font-weight:700;
+      animation:spopA 1s ease-out forwards; z-index:200; white-space:nowrap;
+      text-align:center;
+    }
+    @keyframes spopA { 0%{opacity:1;transform:translateY(0) scale(1);} 100%{opacity:0;transform:translateY(-60px) scale(1.3);} }
+
+    .bigpop {
+      position:absolute; pointer-events:none; z-index:201;
+      font-family:var(--font-display); font-weight:900; text-align:center;
+      left:50%; transform:translateX(-50%);
+      white-space:nowrap; letter-spacing:3px;
+      animation:bigpopA 0.9s ease-out forwards;
+      text-shadow:0 0 24px currentColor;
+    }
+    @keyframes bigpopA {
+      0%   { opacity:0; transform:translateX(-50%) scale(0.4); }
+      20%  { opacity:1; transform:translateX(-50%) scale(1.15); }
+      50%  { opacity:1; transform:translateX(-50%) scale(1.0); }
+      100% { opacity:0; transform:translateX(-50%) scale(1.2) translateY(-30px); }
+    }
+
+    #info-strip {
+      display:none; flex-shrink:0; flex-direction:row; gap:8px;
+      padding:7px 10px; overflow-x:auto; overflow-y:hidden;
+      background:rgba(12,17,30,0.85); border-top:1px solid var(--bdr);
+      justify-content:center;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+    @keyframes scoreFlash { 0%{color:var(--white);} 50%{color:var(--green);} 100%{color:var(--white);} }
+  </style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div id="app">
+
+  <div id="header">
+    <div class="logo">TETR<em>AX</em></div>
+    <div class="hstats">
+      <div class="hstat"><span class="hstat-lbl" data-i18n="score">Score</span><span class="hstat-val blue"   id="h-score">0</span></div>
+      <div class="hstat"><span class="hstat-lbl" data-i18n="level">Level</span>  <span class="hstat-val orange" id="h-level">1</span></div>
+      <div class="hstat"><span class="hstat-lbl" data-i18n="lines">Lines</span> <span class="hstat-val green"  id="h-lines">0</span></div>
+      <div class="hstat"><span class="hstat-lbl" data-i18n="best">Best</span> <span class="hstat-val"        id="h-best">0</span></div>
+    </div>
+    <div class="hbtns">
+      <div class="hbtn" id="btn-sound">🔊</div>
+      <div class="hbtn on" id="btn-buttons">⊞</div>
+    </div>
+  </div>
+
+  <div id="body">
+    <div class="sidebar" id="sl">
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="level">Level</div>
+        <div class="lvl-n" id="lvl-n">1</div>
+        <div class="bar-wrap"><div class="bar" id="lvl-bar" style="width:0%"></div></div>
+        <div class="lvl-hint" id="lvl-hint">0 / 8</div>
+        <div class="pips" id="pips">
+          <div class="pip on"></div><div class="pip"></div><div class="pip"></div>
+          <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+          <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+          <div class="pip"></div>
+        </div>
+      </div>
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="lines">Lines</div>
+        <div class="lines-n" id="lines-n">0</div>
+      </div>
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="combo">Combo</div>
+        <div class="combo-display" id="combo-disp">—</div>
+      </div>
+      <div class="pbox" id="ctrl-box">
+        <div class="pbox-t" data-i18n="controls">Controls</div>
+        <div style="font-size:9px;color:var(--mid);line-height:2.2;">
+          <div>↔ <span data-i18n="slide">Slide</span></div>
+          <div>tap <span data-i18n="rotate">Rotate</span></div>
+          <div>↓ <span data-i18n="drop">Drop</span></div>
+          <div>⊡ <span data-i18n="hold">Hold</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-area">
+      <div id="canvas-wrap">
+        <canvas id="gc"></canvas>
+        <div id="ovl-levelup">
+          <div class="lvlup-num" id="lvlup-num">2</div>
+          <div class="lvlup-label" data-i18n="levelUp">LEVEL</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar" id="sr">
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="next">Next</div>
+        <div class="next-stack" id="next-stack">
+          <canvas id="nc0" width="112" height="48"></canvas>
+          <canvas id="nc1" width="112" height="48"></canvas>
+          <canvas id="nc2" width="112" height="48"></canvas>
+        </div>
+      </div>
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="hold">Hold</div>
+        <canvas id="hc" width="112" height="52"></canvas>
+      </div>
+      <div class="pbox">
+        <div class="pbox-t" data-i18n="top5">Top 5</div>
+        <div id="hscores"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="info-strip">
+    <div class="pbox">
+      <div class="pbox-t" data-i18n="level">Level</div>
+      <div class="lvl-n" id="lvl-n-p" style="font-size:26px;line-height:1;">1</div>
+      <div class="bar-wrap"><div class="bar" id="lvl-bar-p" style="width:0%"></div></div>
+      <div class="lvl-hint" id="lvl-hint-p">0 / 8</div>
+    </div>
+    <div class="pbox">
+      <div class="pbox-t" data-i18n="lines">Lines</div>
+      <div class="lines-n" id="lines-n-p" style="font-size:22px;">0</div>
+    </div>
+    <div class="pbox">
+      <div class="pbox-t" data-i18n="next">Next</div>
+      <canvas id="nc-p" width="86" height="54"></canvas>
+    </div>
+    <div class="pbox">
+      <div class="pbox-t" data-i18n="hold">Hold</div>
+      <canvas id="hc-p" width="86" height="54"></canvas>
+    </div>
+    <div class="pbox" id="hscores-p-wrap">
+      <div class="pbox-t" data-i18n="top5">Top 5</div>
+      <div id="hscores-p" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;"></div>
+    </div>
+  </div>
+
+  <div id="touch-bar">
+    <div class="tbtn orange" id="tb-hold">⊡</div>
+    <div class="tbtn"        id="tb-left">◀</div>
+    <div class="tbtn accent" id="tb-rot">↻</div>
+    <div class="tbtn"        id="tb-down">▼</div>
+    <div class="tbtn"        id="tb-right">▶</div>
+    <div class="tbtn-drop"   id="tb-drop">DROP</div>
+    <div class="tbtn"        id="tb-pause" style="color:var(--mid);">⏸</div>
+  </div>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════
+  //  TETRAX i18n — Internationalization
+  // ══════════════════════════════════════════════════
+
+  const I18N = {
+    en: {
+      score:'Score', level:'Level', lines:'Lines', best:'Best',
+      next:'Next', hold:'Hold', combo:'Combo', controls:'Controls',
+      top5:'Top 5', levelUp:'LEVEL',
+      slide:'Slide', rotate:'Rotate', drop:'Drop',
+      newGame:'NEW GAME', paused:'PAUSED', gamePaused:'Game paused',
+      resume:'RESUME', gameOver:'GAME OVER', playAgain:'PLAY AGAIN',
+      mainMenu:'MAIN MENU', continueAd:'CONTINUE · WATCH AD',
+      personalBest:'PERSONAL BEST', tagline:'The Ultimate Block Puzzle',
+      swipe:'SWIPE', swipeSub:'Move left / right',
+      tap:'TAP', tapSub:'Rotate piece',
+      drag:'DRAG', dragSub:'Fast drop',
+      flick:'FLICK', flickSub:'Hard drop',
+    },
+    es: {
+      score:'Puntos', level:'Nivel', lines:'Líneas', best:'Récord',
+      next:'Siguiente', hold:'Guardada', combo:'Combo', controls:'Gestos',
+      top5:'Top 5', levelUp:'NIVEL',
+      slide:'Deslizar', rotate:'Rotar', drop:'Bajar',
+      newGame:'NUEVA PARTIDA', paused:'PAUSA', gamePaused:'Partida en espera',
+      resume:'CONTINUAR', gameOver:'FIN DE PARTIDA', playAgain:'JUGAR DE NUEVO',
+      mainMenu:'MENÚ PRINCIPAL', continueAd:'CONTINUAR · VER ANUNCIO',
+      personalBest:'RÉCORD PERSONAL', tagline:'El Tetris definitivo',
+      swipe:'DESLIZAR', swipeSub:'Mover izq / der',
+      tap:'TAP', tapSub:'Rotar pieza',
+      drag:'ARRASTRAR', dragSub:'Caída rápida',
+      flick:'FLICK', flickSub:'Caída libre',
+    },
+    de: {
+      score:'Punkte', level:'Level', lines:'Linien', best:'Rekord',
+      next:'Nächste', hold:'Halten', combo:'Kombo', controls:'Steuerung',
+      top5:'Top 5', levelUp:'LEVEL',
+      slide:'Wischen', rotate:'Drehen', drop:'Fallen',
+      newGame:'NEUES SPIEL', paused:'PAUSE', gamePaused:'Spiel pausiert',
+      resume:'WEITER', gameOver:'SPIEL VORBEI', playAgain:'NOCHMAL',
+      mainMenu:'HAUPTMENÜ', continueAd:'WEITER · WERBUNG ANSEHEN',
+      personalBest:'PERSÖNLICHER REKORD', tagline:'Das ultimative Blockpuzzle',
+      swipe:'WISCHEN', swipeSub:'Links / rechts',
+      tap:'TIPPEN', tapSub:'Stein drehen',
+      drag:'ZIEHEN', dragSub:'Schnell fallen',
+      flick:'FLICK', flickSub:'Hard Drop',
+    },
+    fr: {
+      score:'Score', level:'Niveau', lines:'Lignes', best:'Record',
+      next:'Suivant', hold:'Garder', combo:'Combo', controls:'Contrôles',
+      top5:'Top 5', levelUp:'NIVEAU',
+      slide:'Glisser', rotate:'Tourner', drop:'Descendre',
+      newGame:'NOUVELLE PARTIE', paused:'PAUSE', gamePaused:'Jeu en pause',
+      resume:'CONTINUER', gameOver:'FIN DE PARTIE', playAgain:'REJOUER',
+      mainMenu:'MENU PRINCIPAL', continueAd:'CONTINUER · VOIR PUB',
+      personalBest:'RECORD PERSONNEL', tagline:'Le puzzle de blocs ultime',
+      swipe:'GLISSER', swipeSub:'Gauche / droite',
+      tap:'TAPER', tapSub:'Tourner la pièce',
+      drag:'TIRER', dragSub:'Chute rapide',
+      flick:'FLICK', flickSub:'Chute libre',
+    },
+    it: {
+      score:'Punti', level:'Livello', lines:'Linee', best:'Record',
+      next:'Prossimo', hold:'Tieni', combo:'Combo', controls:'Controlli',
+      top5:'Top 5', levelUp:'LIVELLO',
+      slide:'Scorri', rotate:'Ruota', drop:'Scendi',
+      newGame:'NUOVA PARTITA', paused:'PAUSA', gamePaused:'Gioco in pausa',
+      resume:'CONTINUA', gameOver:'GAME OVER', playAgain:'RIGIOCA',
+      mainMenu:'MENU PRINCIPALE', continueAd:'CONTINUA · GUARDA PUB',
+      personalBest:'RECORD PERSONALE', tagline:'Il puzzle di blocchi definitivo',
+      swipe:'SCORRI', swipeSub:'Sinistra / destra',
+      tap:'TOCCA', tapSub:'Ruota pezzo',
+      drag:'TRASCINA', dragSub:'Caduta rapida',
+      flick:'FLICK', flickSub:'Hard Drop',
+    },
+    pt: {
+      score:'Pontos', level:'Nível', lines:'Linhas', best:'Recorde',
+      next:'Próxima', hold:'Guardar', combo:'Combo', controls:'Controles',
+      top5:'Top 5', levelUp:'NÍVEL',
+      slide:'Deslizar', rotate:'Girar', drop:'Descer',
+      newGame:'NOVO JOGO', paused:'PAUSA', gamePaused:'Jogo pausado',
+      resume:'CONTINUAR', gameOver:'FIM DE JOGO', playAgain:'JOGAR DE NOVO',
+      mainMenu:'MENU PRINCIPAL', continueAd:'CONTINUAR · VER ANÚNCIO',
+      personalBest:'RECORDE PESSOAL', tagline:'O puzzle de blocos definitivo',
+      swipe:'DESLIZAR', swipeSub:'Esquerda / direita',
+      tap:'TOQUE', tapSub:'Girar peça',
+      drag:'ARRASTAR', dragSub:'Queda rápida',
+      flick:'FLICK', flickSub:'Hard Drop',
+    },
+    ja: {
+      score:'スコア', level:'レベル', lines:'ライン', best:'最高',
+      next:'次', hold:'ホールド', combo:'コンボ', controls:'操作',
+      top5:'Top 5', levelUp:'レベル',
+      slide:'スライド', rotate:'回転', drop:'落下',
+      newGame:'新しいゲーム', paused:'一時停止', gamePaused:'ゲーム一時停止',
+      resume:'再開', gameOver:'ゲームオーバー', playAgain:'もう一度',
+      mainMenu:'メインメニュー', continueAd:'続ける・広告を見る',
+      personalBest:'個人記録', tagline:'究極のブロックパズル',
+      swipe:'スワイプ', swipeSub:'左 / 右に移動',
+      tap:'タップ', tapSub:'ピースを回転',
+      drag:'ドラッグ', dragSub:'高速落下',
+      flick:'フリック', flickSub:'ハードドロップ',
+    },
+  };
+
+  // Detectar idioma del dispositivo — fallback a inglés
+  function detectLang() {
+    const raw = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    const code = raw.split('-')[0];
+    return I18N[code] ? code : 'en';
+  }
+
+  const LANG = detectLang();
+  const T = I18N[LANG];
+
+  // Aplicar traducciones a elementos con data-i18n
+  function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (T[key]) el.textContent = T[key];
+    });
+  }
+
+  // Llamar al cargar el DOM
+  document.addEventListener('DOMContentLoaded', applyI18n);
+
+  // También exponer para llamar desde Kotlin si es necesario
+  window.setLanguage = function(code) {
+    const lang = I18N[code] ? code : 'en';
+    Object.assign(T, I18N[lang]);
+    applyI18n();
+  };
+
+  // ══════════════════════════════════════════════════
+  //  TETRAX v6 HD
+  // ══════════════════════════════════════════════════
+
+  // ══════════════════════════════════════════════════
+  //  TETRAX AUDIO ENGINE v4
+  //  Philosophy: organic/acoustic SFX (wood, metal,
+  //  bells) via FM + physical modelling.
+  //  Background: single barely-audible breathing drone.
+  //  No music loop — just presence + excellent SFX.
+  // ══════════════════════════════════════════════════
+  const Audio = (() => {
+    let ac = null, sfxOn = true;
+    let masterGain, compressor, reverbSend, reverbNode;
+    let droneNodes = null; // { osc, gain, lfo, lfoGain }
+
+    // ── Master bus ────────────────────────────────────
+    function init() {
+      if (ac) return;
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
+
+      compressor = ac.createDynamicsCompressor();
+      compressor.threshold.value = -16;
+      compressor.knee.value      = 10;
+      compressor.ratio.value     = 5;
+      compressor.attack.value    = 0.004;
+      compressor.release.value   = 0.18;
+
+      masterGain = ac.createGain();
+      masterGain.gain.value = 0.88;
+      masterGain.connect(compressor);
+      compressor.connect(ac.destination);
+
+      // Plate-like reverb: 6 comb delays in parallel
+      reverbNode = ac.createGain(); reverbNode.gain.value = 0.22;
+      [0.0283, 0.0317, 0.0373, 0.0411, 0.0443, 0.0479].forEach(t => {
+        const d = ac.createDelay(0.6); d.delayTime.value = t;
+        const fb = ac.createGain(); fb.gain.value = 0.52;
+        d.connect(fb); fb.connect(d); d.connect(reverbNode);
+      });
+      reverbSend = ac.createGain(); reverbSend.gain.value = 1;
+      reverbNode.connect(reverbSend); reverbSend.connect(compressor);
+    }
+
+    function resume() { if (ac && ac.state === 'suspended') ac.resume(); }
+
+    // ── Routing helpers ───────────────────────────────
+    function toOut(node, rv = 0.25) {
+      node.connect(masterGain);
+      if (rv > 0) {
+        const s = ac.createGain(); s.gain.value = rv;
+        node.connect(s); s.connect(reverbNode);
+      }
+    }
+
+    // ADSR on a GainNode
+    function adsr(g, t, a, d, s, r, pk) {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(pk,    t + a);
+      g.gain.linearRampToValueAtTime(pk*s,  t + a + d);
+      g.gain.setValueAtTime(pk*s,           t + a + d);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + a + d + r);
+    }
+
+    // ── Core synthesis primitives ─────────────────────
+
+    // FM bell/marimba/wood — the heart of the organic sound
+    // carrier + modulator with controllable index and ratio
+    function fmNote(freq, modRatio, modIdx, when, dur, vol, rv = 0.4,
+                    a = 0.001, d = 0.18, s = 0.0, r = 0.5) {
+      if (!ac || !sfxOn) return;
+      const carrier = ac.createOscillator();
+      const mod     = ac.createOscillator();
+      const modG    = ac.createGain();
+      const outG    = ac.createGain();
+      const flt     = ac.createBiquadFilter();
+      flt.type = 'lowpass'; flt.frequency.value = 8000; flt.Q.value = 0.4;
+
+      mod.frequency.value  = freq * modRatio;
+      modG.gain.value      = freq * modIdx;
+      carrier.frequency.value = freq;
+      carrier.type = 'sine'; mod.type = 'sine';
+
+      mod.connect(modG); modG.connect(carrier.frequency);
+      carrier.connect(flt); flt.connect(outG);
+      toOut(outG, rv);
+
+      adsr(outG, when, a, d, s, r, vol);
+      mod.start(when); carrier.start(when);
+      mod.stop(when + dur + 0.05); carrier.stop(when + dur + 0.05);
+    }
+
+    // Pitched noise burst — body/texture layer
+    function noiseHit(when, dur, fFreq, fType, fQ, vol, rv = 0.05,
+                      a = 0.001, d = 0.06, s = 0.0, r = 0.12) {
+      if (!ac || !sfxOn) return;
+      const len = Math.ceil(ac.sampleRate * (dur + 0.05));
+      const buf = ac.createBuffer(1, len, ac.sampleRate);
+      const d2  = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d2[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(); src.buffer = buf;
+      const flt = ac.createBiquadFilter();
+      flt.type = fType; flt.frequency.value = fFreq; flt.Q.value = fQ;
+      const g = ac.createGain();
+      src.connect(flt); flt.connect(g); toOut(g, rv);
+      adsr(g, when, a, d, s, r, vol);
+      src.start(when); src.stop(when + dur + 0.1);
+    }
+
+    // Simple sine/triangle tone (for sub layers, quick pings)
+    function tone(freq, type, when, dur, vol, rv = 0.2,
+                  a = 0.004, d = 0.1, s = 0.3, r = 0.3) {
+      if (!ac || !sfxOn) return;
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type; o.frequency.value = freq;
+      o.connect(g); toOut(g, rv);
+      adsr(g, when, a, d, s, r, vol);
+      o.start(when); o.stop(when + dur + 0.1);
+    }
+
+    // ── Instrument models ─────────────────────────────
+
+    // WOODBLOCK — dry, punchy, short
+    // Short FM burst with high mod index = woody click
+    function woodblock(when, freq = 800, vol = 0.55) {
+      fmNote(freq, 3.5, 8,  when, 0.06, vol * 0.8, 0.04, 0.001, 0.008, 0, 0.05);
+      fmNote(freq * 0.5, 2, 5, when, 0.05, vol * 0.5, 0.02, 0.001, 0.012, 0, 0.04);
+      noiseHit(when, 0.018, freq * 2, 'bandpass', 4, vol * 0.3, 0.0);
+    }
+
+    // BELL — sustaining, harmonic FM bell (metal)
+    // Classic FM bell: modRatio ≈ 1.4, index 2–8
+    function bell(freq, when, dur, vol, rv = 0.55) {
+      // Primary partial
+      fmNote(freq, 1.4, 3.5, when, dur, vol,       rv, 0.002, 0.04, 0.0, dur * 0.85);
+      // Second partial (slightly detuned, quieter)
+      fmNote(freq * 2.756, 1.4, 1.5, when, dur * 0.7, vol * 0.38, rv * 0.8,
+             0.003, 0.06, 0.0, dur * 0.6);
+      // Sub fundamental
+      tone(freq * 0.5, 'sine', when, dur * 0.4, vol * 0.2, rv * 0.3,
+           0.002, 0.05, 0, dur * 0.3);
+    }
+
+    // BOWL / SINGING BOWL — warm attack, very long decay
+    function bowl(freq, when, vol) {
+      fmNote(freq,       1.0,  0.8, when, 2.5, vol,       0.65, 0.06, 0.5, 0.1, 1.8);
+      fmNote(freq * 2.4, 1.0,  0.4, when, 2.0, vol * 0.5, 0.5,  0.08, 0.4, 0.0, 1.5);
+      fmNote(freq * 3.9, 1.0,  0.2, when, 1.5, vol * 0.2, 0.4,  0.1,  0.3, 0.0, 1.1);
+    }
+
+    // MARIMBA — warm woody mallet hit, fast attack, medium decay
+    function marimba(freq, when, vol, rv = 0.35) {
+      // Fundamental — FM with low mod index = warm wood tone
+      fmNote(freq,     3.96, 1.8, when, 0.9, vol,       rv,       0.001, 0.12, 0.0, 0.75);
+      fmNote(freq * 4, 1.0,  0.4, when, 0.4, vol * 0.3, rv * 0.5, 0.001, 0.08, 0.0, 0.3);
+      // Attack click (body noise)
+      noiseHit(when, 0.025, freq * 3, 'bandpass', 3, vol * 0.35, 0.0);
+    }
+
+    // XYLOPHONE — brighter, harder mallet
+    function xylo(freq, when, vol) {
+      fmNote(freq,     3.0, 3.0, when, 0.5, vol,       0.3, 0.001, 0.06, 0.0, 0.42);
+      fmNote(freq * 3, 1.5, 1.0, when, 0.3, vol * 0.4, 0.2, 0.001, 0.04, 0.0, 0.25);
+      noiseHit(when, 0.012, freq * 4, 'bandpass', 5, vol * 0.25, 0.0);
+    }
+
+    // GONG — deep, long, complex inharmonic spectrum
+    function gong(freq, when, vol) {
+      [1, 1.27, 1.91, 2.6, 3.45].forEach((rat, i) => {
+        const idx = [4, 2.5, 1.8, 1.2, 0.7][i];
+        const dv  = [vol, vol*0.65, vol*0.45, vol*0.3, vol*0.2][i];
+        const dur = [3.5, 2.8, 2.1, 1.5, 1.0][i];
+        fmNote(freq * rat, 1.4, idx, when, dur, dv, 0.7,
+               0.015, 0.4, 0.05, dur * 0.8);
+      });
+      // Sub boom
+      tone(freq * 0.5, 'sine', when, 2.0, vol * 0.5, 0.4, 0.01, 0.25, 0.3, 1.4);
+      // Initial hit noise
+      noiseHit(when, 0.08, 200, 'lowpass', 1.5, vol * 0.6, 0.15);
+    }
+
+    // CHIME CHORD — multiple bells at once (for big events)
+    function chimeChord(freqs, when, vol, stagger = 0.055) {
+      freqs.forEach((f, i) => bell(f, when + i * stagger, 1.4, vol * (1 - i * 0.08), 0.55));
+    }
+
+    // ── SFX ──────────────────────────────────────────
+    const SFX = {
+
+      // move → woodblock click, minimal, dry
+      move() {
+        const t = ac.currentTime;
+        woodblock(t, 900, 0.48);
+      },
+
+      // rotate → two-tone xylo ping, ascending
+      rotate() {
+        const t = ac.currentTime;
+        xylo(880, t,        0.42);
+        xylo(1108, t + 0.05, 0.32);
+      },
+
+      // lock → marimba thud + soft metal ring
+      lock() {
+        const t = ac.currentTime;
+        marimba(220, t, 0.55, 0.2);
+        bell(660, t + 0.02, 0.55, 0.18, 0.45);
+        noiseHit(t, 0.04, 350, 'bandpass', 2, 0.22, 0.05);
+      },
+
+      // hardDrop → deep marimba sweep + impact
+      hardDrop() {
+        const t = ac.currentTime;
+        // Pitch sweep downward — falling feel
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(600, t);
+        o.frequency.exponentialRampToValueAtTime(120, t + 0.12);
+        o.connect(g); toOut(g, 0.06);
+        adsr(g, t, 0.001, 0.04, 0, 0.09, 0.35);
+        o.start(t); o.stop(t + 0.18);
+        // Impact: big marimba hit
+        marimba(146, t + 0.10, 0.7, 0.18);
+        noiseHit(t + 0.10, 0.08, 280, 'lowpass', 1.8, 0.45, 0.08);
+      },
+
+      // hold → singing bowl, warm and round
+      hold() {
+        const t = ac.currentTime;
+        bowl(528, t, 0.22);
+      },
+
+      // clear1 → single bright bell
+      clear1() {
+        const t = ac.currentTime;
+        bell(1047, t, 1.1, 0.32, 0.55);
+      },
+
+      // clear2 → two bells ascending
+      clear2() {
+        const t = ac.currentTime;
+        bell(880,  t,        0.9, 0.3,  0.55);
+        bell(1175, t + 0.08, 1.0, 0.32, 0.6);
+      },
+
+      // clear3 → three bells + marimba bass hit
+      clear3() {
+        const t = ac.currentTime;
+        marimba(220, t, 0.45, 0.25);
+        bell(880,  t + 0.04, 0.9, 0.28, 0.55);
+        bell(1175, t + 0.10, 0.8, 0.30, 0.6);
+        bell(1568, t + 0.17, 0.7, 0.32, 0.65);
+      },
+
+      // tetris → 4-bell chime chord + gong shimmer
+      tetris() {
+        const t = ac.currentTime;
+        // Ascending marimba run
+        [146, 196, 247, 294].forEach((f, i) =>
+          marimba(f, t + i * 0.06, 0.55, 0.22));
+        // Bell chord on top
+        chimeChord([880, 1108, 1397, 1760], t + 0.15, 0.3, 0.07);
+        // Small gong shimmer
+        fmNote(220, 1.27, 3, t + 0.12, 2.5, 0.18, 0.7, 0.01, 0.3, 0.05, 1.8);
+      },
+
+      // btb → extra glittery bells above tetris
+      btb() {
+        const t = ac.currentTime;
+        chimeChord([1047, 1319, 1568, 1976, 2637], t, 0.26, 0.055);
+        fmNote(523, 1.27, 2.5, t + 0.05, 2.0, 0.15, 0.65, 0.01, 0.25, 0.05, 1.6);
+      },
+
+      // levelUp → pentatonic bell scale, warm and satisfying
+      levelUp() {
+        const t = ac.currentTime;
+        // C pentatonic major up two octaves
+        [523, 659, 784, 1047, 1319, 1568, 2093].forEach((f, i) => {
+          bell(f, t + i * 0.085, 1.1, 0.22 - i * 0.015, 0.55);
+          if (i < 4) marimba(f * 0.5, t + i * 0.085, 0.18, 0.15);
+        });
+      },
+
+      // gameOver → descending gong sequence, cinematic
+      gameOver() {
+        const t = ac.currentTime;
+        gong(130, t, 0.45);
+        // Slower descending bells
+        [523, 466, 415, 370, 330, 294].forEach((f, i) => {
+          bell(f, t + 0.3 + i * 0.22, 1.8, 0.2 - i * 0.02, 0.65);
+        });
+        // Final low gong
+        gong(82, t + 1.8, 0.35);
+      },
+
+      // danger → no longer a one-shot; handled by drone
+      danger() {},
+    };
+
+    // ── Breathing drone ───────────────────────────────
+    // A barely-audible pad (volume ~0.022 max) that slowly
+    // swells and fades with an LFO (period ~8 seconds).
+    // In danger mode its gain and filter cutoff rise slightly.
+    // The pad uses three stacked sines (root + 5th + octave)
+    // so it reads as "air" rather than a musical note.
+    function buildDrone() {
+      if (!ac || droneNodes) return;
+
+      const root = 55; // A1 — sub range, almost below hearing threshold in isolation
+      const freqs = [root, root * 1.5, root * 2]; // root, 5th, octave
+
+      const masterDroneGain = ac.createGain();
+      masterDroneGain.gain.value = 0;
+      masterDroneGain.connect(masterGain);
+
+      // Reverb send for drone
+      const droneSend = ac.createGain(); droneSend.gain.value = 0.8;
+      masterDroneGain.connect(droneSend); droneSend.connect(reverbNode);
+
+      const lowPass = ac.createBiquadFilter();
+      lowPass.type = 'lowpass'; lowPass.frequency.value = 320; lowPass.Q.value = 0.5;
+
+      const oscs = freqs.map((f, i) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        o.detune.value = [-4, 0, 5][i]; // tiny detune for warmth
+        g.gain.value = [0.6, 0.35, 0.2][i];
+        o.connect(g); g.connect(lowPass);
+        o.start();
+        return o;
+      });
+      lowPass.connect(masterDroneGain);
+
+      // LFO — slow breath: 8-second cycle, modulates masterDroneGain
+      const lfo = ac.createOscillator();
+      const lfoG = ac.createGain();
+      lfo.type = 'sine'; lfo.frequency.value = 0.125; // 8s period
+      lfoG.gain.value = 0.009; // ±0.009 around center = very subtle swell
+      lfo.connect(lfoG); lfoG.connect(masterDroneGain.gain);
+      lfo.start();
+
+      droneNodes = { masterDroneGain, lowPass, lfo, oscs };
+    }
+
+    function droneStart() {
+      if (!ac || !sfxOn) return;
+      buildDrone();
+      const now = ac.currentTime;
+      // Fade in over 3 seconds
+      droneNodes.masterDroneGain.gain.cancelScheduledValues(now);
+      droneNodes.masterDroneGain.gain.setValueAtTime(
+        droneNodes.masterDroneGain.gain.value, now);
+      droneNodes.masterDroneGain.gain.linearRampToValueAtTime(0.018, now + 3.0);
+    }
+
+    function droneStop() {
+      if (!droneNodes) return;
+      const now = ac.currentTime;
+      droneNodes.masterDroneGain.gain.cancelScheduledValues(now);
+      droneNodes.masterDroneGain.gain.setValueAtTime(
+        droneNodes.masterDroneGain.gain.value, now);
+      droneNodes.masterDroneGain.gain.linearRampToValueAtTime(0, now + 1.5);
+    }
+
+    // Called from game loop when dangerMode changes
+    function updateDroneState(isDanger) {
+      if (!droneNodes || !ac) return;
+      const now = ac.currentTime;
+      const targetVol  = isDanger ? 0.042 : 0.018;
+      const targetCut  = isDanger ? 520   : 320;
+      droneNodes.masterDroneGain.gain.cancelScheduledValues(now);
+      droneNodes.masterDroneGain.gain.setValueAtTime(
+        droneNodes.masterDroneGain.gain.value, now);
+      droneNodes.masterDroneGain.gain.linearRampToValueAtTime(targetVol, now + 1.2);
+      droneNodes.lowPass.frequency.setTargetAtTime(targetCut, now, 1.0);
+    }
+
+    // ── Public API ───────────────────────────────────
+    return {
+      init, resume,
+
+      play(name) {
+        if (!sfxOn) return;
+        init(); resume();
+        SFX[name]?.();
+      },
+
+      // Called when game starts
+      startMusic() {
+        init(); resume();
+        droneStart();
+      },
+
+      // Called on pause/gameover
+      stopMusic() { droneStop(); },
+
+      // Called when dangerMode changes (pass true/false)
+      setDanger(isDanger) {
+        if (!sfxOn) return;
+        init(); resume();
+        updateDroneState(isDanger);
+      },
+
+      toggleSfx() {
+        sfxOn = !sfxOn;
+        if (!sfxOn) droneStop();
+        else { init(); resume(); droneStart(); }
+        return sfxOn;
+      },
+
+      isSfxOn() { return sfxOn; },
+    };
+  })();
+
+  window._gameLevel = 1;
+
+  // ─── Stars ───────────────────────────────────────
+  (function() {
+    const sc=document.getElementById('stars');
+    sc.width=window.innerWidth; sc.height=window.innerHeight;
+    const sx=sc.getContext('2d');
+    for(let i=0;i<160;i++){
+      sx.beginPath();
+      sx.arc(Math.random()*sc.width,Math.random()*sc.height,Math.random()*1.3,0,Math.PI*2);
+      sx.fillStyle=`rgba(${180+~~(Math.random()*70)},${190+~~(Math.random()*60)},255,${(.06+Math.random()*.4).toFixed(2)})`;
+      sx.fill();
+    }
+  })();
+
+  // ─── Constants ───────────────────────────────────
+  // COLS and ROWS are now dynamic — recalculated on every resize
+  // based on the available area ratio and minimum cell size.
+  let COLS=10, ROWS=20;
+  let CELL=28;
+  const DPR = Math.min(window.devicePixelRatio || 1, 3);
+  const CELL_MIN = 22; // minimum cell size in CSS px
+
+  const DEFS = [
+    {n:'I',c:[[0,0],[1,0],[2,0],[3,0]],col:'#00E5FF',drk:'#003844'},
+    {n:'O',c:[[0,0],[1,0],[0,1],[1,1]],col:'#FFE033',drk:'#3A3000'},
+    {n:'T',c:[[1,0],[0,1],[1,1],[2,1]],col:'#CC44FF',drk:'#280040'},
+    {n:'S',c:[[1,0],[2,0],[0,1],[1,1]],col:'#3DFF7A',drk:'#003320'},
+    {n:'Z',c:[[0,0],[1,0],[1,1],[2,1]],col:'#FF4B5C',drk:'#380008'},
+    {n:'J',c:[[0,0],[0,1],[1,1],[2,1]],col:'#4D9FFF',drk:'#00163E'},
+    {n:'L',c:[[2,0],[0,1],[1,1],[2,1]],col:'#FF8C3D',drk:'#381700'},
+  ];
+  const SPD=[380,310,245,190,165,145,128,114,102,92,84,77,71,66,62,58,55,53,51,50];
+  const PTS=[0,100,300,500,800];
+  const KICKS={
+    '0>1':[[-1,0],[-1,1],[0,-2],[-1,-2]],'1>0':[[1,0],[1,-1],[0,2],[1,2]],
+    '1>2':[[1,0],[1,-1],[0,2],[1,2]],    '2>1':[[-1,0],[-1,1],[0,-2],[-1,-2]],
+    '2>3':[[1,0],[1,1],[0,-2],[1,-2]],   '3>2':[[-1,0],[-1,-1],[0,2],[-1,2]],
+    '3>0':[[-1,0],[-1,-1],[0,2],[-1,2]],'0>3':[[1,0],[1,1],[0,-2],[1,-2]],
+  };
+
+  // ─── Canvas setup ────────────────────────────────
+  const gc=document.getElementById('gc'), ctx=gc.getContext('2d');
+  const hc=document.getElementById('hc'), hctx=hc.getContext('2d');
+  const ncList=[0,1,2].map(i=>document.getElementById('nc'+i));
+  const nctxList=ncList.map(c=>c.getContext('2d'));
+
+  function setHDCanvas(canvas, context, cssW, cssH) {
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width  = Math.round(cssW * DPR);
+    canvas.height = Math.round(cssH * DPR);
+    context.setTransform(1,0,0,1,0,0);
+    context.scale(DPR, DPR);
+  }
+
+  // Compute best COLS×ROWS for the available area.
+  // Strategy: try every integer combination within bounds,
+  // pick the one that maximises used area with CELL >= CELL_MIN.
+  function computeGrid(availW, availH) {
+    // Column range: 8–18, Row range: 16–26
+    const COL_MIN=8, COL_MAX=18, ROW_MIN=16, ROW_MAX=26;
+    let bestCols=10, bestRows=20, bestCell=0, bestArea=0;
+
+    for(let c=COL_MIN; c<=COL_MAX; c++){
+      for(let r=ROW_MIN; r<=ROW_MAX; r++){
+        const cellByW = Math.floor(availW / c);
+        const cellByH = Math.floor(availH / r);
+        const cell    = Math.min(cellByW, cellByH);
+        if(cell < CELL_MIN) continue;
+        const area = cell*c * cell*r; // total board area in px²
+        if(area > bestArea){
+          bestArea=area; bestCell=cell;
+          bestCols=c;    bestRows=r;
+        }
+      }
+    }
+    return { cols: bestCols, rows: bestRows, cell: bestCell };
+  }
+
+  function resizeCanvas() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const isPortrait = H > W;
+    const isNarrow   = W < 480;
+    document.body.classList.toggle('is-portrait',  isPortrait);
+    document.body.classList.toggle('is-landscape', !isPortrait);
+    document.body.classList.toggle('is-wide',   isPortrait && !isNarrow);
+    document.body.classList.toggle('is-narrow', isPortrait && isNarrow);
+
+    requestAnimationFrame(() => {
+      const header    = document.getElementById('header');
+      const touchBar  = document.getElementById('touch-bar');
+      const infoStrip = document.getElementById('info-strip');
+
+      const headerH    = header.offsetHeight;
+      const touchBarH  = touchBar.offsetHeight;
+      const infoStripH = infoStrip.offsetHeight;
+
+      // Read safe-area insets exposed as CSS vars (set via env() in :root)
+      const cssVars    = getComputedStyle(document.documentElement);
+      const safeTop    = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
+      const safeBottom = parseFloat(cssVars.getPropertyValue('--sab')) || 0;
+
+      const availH = H - headerH - touchBarH - infoStripH - safeTop - safeBottom - 8;
+      const area   = document.getElementById('canvas-area');
+      const availW = area.clientWidth - 4;
+
+      const prev = { cols: COLS, rows: ROWS };
+      const grid = computeGrid(availW, availH);
+      COLS = grid.cols;
+      ROWS = grid.rows;
+      CELL = grid.cell;
+
+      const cssW = COLS * CELL;
+      const cssH = ROWS * CELL;
+
+      setHDCanvas(gc, ctx, cssW, cssH);
+      document.getElementById('canvas-wrap').style.setProperty('--cs', CELL + 'px');
+
+      // If grid dimensions changed mid-game, restart the board
+      // (keeps the game consistent — can't have pieces outside bounds)
+      if(started && !gameOver && (prev.cols !== COLS || prev.rows !== ROWS)){
+        board = mkBoard();
+        cur   = pop(); nxt = pop(); hld = null; holdUsed = false;
+        yAcc = 0; xVisual = cur.x;
+        updateUI();
+      }
+
+      render();
+    });
+  }
+
+  // ─── Piece ───────────────────────────────────────
+  class Piece {
+    constructor(def){this.def=def;this.n=def.n;this.col=def.col;this.drk=def.drk;this.c=def.c.map(x=>[...x]);this.rot=0;this.x=Math.floor((COLS-4)/2);this.y=def.n==='I'?-1:0;}
+    clone(){const p=new Piece(this.def);p.c=this.c.map(x=>[...x]);p.rot=this.rot;p.x=this.x;p.y=this.y;return p;}
+    abs(){return this.c.map(([cx,cy])=>[this.x+cx,this.y+cy]);}
+    rotate(d=1){const pr=this.rot,m=Math.max(...this.c.flatMap(x=>x));this.c=this.c.map(([cx,cy])=>d===1?[m-cy,cx]:[cy,m-cx]);this.rot=((this.rot+d+4)%4);return pr;}
+  }
+
+  // ─── Bag ─────────────────────────────────────────
+  let bag=[];
+  function refill(){const b=[...DEFS];for(let i=b.length-1;i>0;i--){const j=~~(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}bag.push(...b);}
+  function pop(){if(bag.length<10)refill();return new Piece(bag.shift());}
+  function peek(i){while(bag.length<=i+1)refill();return bag[i];}
+
+  // ─── State ───────────────────────────────────────
+  let board, cur, nxt, hld, holdUsed;
+  let score, level, lines, gameOver, paused, started;
+  let combo=0, lockTmr=null, btbActive=false, dangerMode=false;
+  let clearAnim = null;
+  let gameOverAnim = null; // {progress:0, snapshot:board}
+  // Smooth motion: yAcc accumulates fractional drop progress (0..1 per cell)
+  // xVisual interpolates toward cur.x for smooth horizontal movement
+  let yAcc=0, xVisual=0;
+  let softDropActive=false; // true while ▼ button / down-swipe held
+  let highScores=[];
+  try{highScores=JSON.parse(localStorage.getItem('tetrax6_hs'))||[];}catch(e){}
+
+  const mkBoard=()=>Array.from({length:ROWS},()=>Array(COLS).fill(null));
+
+  function init() {
+    board=mkBoard();bag=[];refill();refill();
+    cur=pop();nxt=pop();hld=null;holdUsed=false;
+    score=0;level=1;lines=0;
+    gameOver=false;paused=false;combo=0;btbActive=false;dangerMode=false;
+    window._gameLevel=1;window._dangerMode=false;
+    yAcc=0; xVisual=cur?cur.x:0; softDropActive=false;
+    bgFrom={...PALETTES[0]}; bgTo={...PALETTES[0]}; bgT=1; bgLastLevel=1;
+    updateUI();
+  }
+
+  // ─── Board logic ─────────────────────────────────
+  function fits(p,dx=0,dy=0,cells=null){
+    return(cells||p.c).every(([cx,cy])=>{const nx=p.x+cx+dx,ny=p.y+cy+dy;return nx>=0&&nx<COLS&&ny<ROWS&&(ny<0||!board[ny][nx]);});
+  }
+  function lockPiece(p){p.abs().forEach(([x,y])=>{if(y>=0)board[y][x]={col:p.col,drk:p.drk};});}
+
+  function clearLines() {
+    let n=0; const nb=[];
+    board.forEach((row,ri)=>{
+      if(row.every(c=>c!==null)){n++;flashRow(ri);}
+      else nb.push(row);
+    });
+    while(nb.length<ROWS)nb.unshift(Array(COLS).fill(null));
+    board=nb; return n;
+  }
+
+  function flashRow(ri) {
+    const rowSnap = [...board[ri]];
+    if(!clearAnim) clearAnim = { rows: [], progress: 0 };
+    clearAnim.rows.push({ ri, snap: rowSnap });
+    clearAnim.progress = 0;
+    spawnParticlesRow(ri);
+  }
+
+  // ─── Particles ───────────────────────────────────
+  function spawnParticlesRow(ri) {
+    const wrap=document.getElementById('canvas-wrap');
+    const colors=['#00E5FF','#FFE033','#CC44FF','#3DFF7A','#FF4B5C','#4D9FFF','#FF8C3D'];
+    for(let i=0;i<12;i++){
+      const el=document.createElement('div');
+      el.className='particle';
+      const size=Math.random()*5+3;
+      const tx=(Math.random()-0.5)*gc.clientWidth*0.8;
+      const ty=-(Math.random()*80+30);
+      const dur=(Math.random()*0.4+0.5).toFixed(2);
+      el.style.cssText=`width:${size}px;height:${size}px;background:${colors[~~(Math.random()*colors.length)]};left:${Math.random()*gc.clientWidth}px;top:${ri*CELL+CELL/2}px;--tx:${tx}px;--ty:${ty}px;--dur:${dur}s;`;
+      wrap.appendChild(el);
+      setTimeout(()=>el.remove(),parseFloat(dur)*1000+100);
+    }
+  }
+
+  function spawnParticlesBoom(cx,cy,col) {
+    const wrap=document.getElementById('canvas-wrap');
+    for(let i=0;i<8;i++){
+      const el=document.createElement('div');
+      el.className='particle';
+      const size=Math.random()*4+2;
+      const angle=Math.random()*Math.PI*2;
+      const dist=Math.random()*50+20;
+      el.style.cssText=`width:${size}px;height:${size}px;background:${col};left:${cx}px;top:${cy}px;--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;--dur:0.6s;`;
+      wrap.appendChild(el);
+      setTimeout(()=>el.remove(),700);
+    }
+  }
+
+  // ─── Shake ───────────────────────────────────────
+  function shakeBoard() {
+    const w=document.getElementById('canvas-wrap');
+    w.classList.remove('shake');
+    requestAnimationFrame(()=>{ w.classList.add('shake'); setTimeout(()=>w.classList.remove('shake'),260); });
+  }
+
+  // ─── Danger zone ─────────────────────────────────
+  function checkDanger() {
+    // Danger: top ~20% of board filled
+    const dangerRow = Math.max(2, Math.floor(ROWS * 0.2));
+    const topFilled = board.slice(0, dangerRow).some(row => row.some(c => c !== null));
+    const newDanger = topFilled;
+    if(newDanger!==dangerMode){
+      dangerMode=newDanger;
+      window._dangerMode = dangerMode;
+      document.getElementById('canvas-wrap').classList.toggle('danger-zone',dangerMode);
+      document.getElementById('header').classList.toggle('danger',dangerMode);
+      Audio.setDanger(dangerMode);
+    }
+  }
+
+  // ─── Level up overlay ────────────────────────────
+  function showLevelUp(lv) {
+    const ovl=document.getElementById('ovl-levelup');
+    document.getElementById('lvlup-num').textContent=lv;
+    ovl.classList.add('show');
+    setTimeout(()=>ovl.classList.remove('show'),1000);
+  }
+
+  // ─── Game actions ────────────────────────────────
+  // Lateral moves: snap xVisual immediately so the lerp starts from correct pos
+  function ml(){if(!cur||!fits(cur,-1))return; cur.x--; Audio.play('move'); rl();}
+  function mr(){if(!cur||!fits(cur, 1))return; cur.x++; Audio.play('move'); rl();}
+
+  // Hard drop: teleport piece to bottom, snap yAcc
+  function hd(){
+    if(!cur)return;
+    let d=0; while(fits(cur,0,1)){cur.y++;d++;}
+    yAcc=0; xVisual=cur.x;
+    score+=d*2; Audio.play('hardDrop'); place();
+  }
+
+  function place(){
+    if(lockTmr){clearTimeout(lockTmr);lockTmr=null;}
+    lockFlash(cur);
+    lockPiece(cur);
+    const n=clearLines();
+    if(n===0) Audio.play('lock');
+    addScore(n);
+    checkDanger();
+    cur=nxt; nxt=pop(); holdUsed=false;
+    if(!fits(cur)){doGameOver();return;}
+    yAcc=0; xVisual=cur.x;
+    updateUI();
+  }
+
+  function lockFlash(piece) {
+    const wrap = document.getElementById('canvas-wrap');
+    piece.c.forEach(([cx, cy]) => {
+      const ax = piece.x + cx, ay = piece.y + cy;
+      if(ay < 0 || ay >= ROWS) return;
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position:absolute;
+        left:${ax * CELL}px;
+        top:${ay * CELL}px;
+        width:${CELL}px;
+        height:${CELL}px;
+        background:rgba(255,255,255,0.55);
+        border-radius:${Math.max(2, CELL * 0.12)}px;
+        pointer-events:none;
+        animation:lockFlashAnim 0.18s ease-out forwards;
+      `;
+      wrap.appendChild(el);
+      setTimeout(() => el.remove(), 200);
+    });
+  }
+
+  // Lock delay: only start if piece can't fall
+  function sl(){if(lockTmr)return; lockTmr=setTimeout(()=>{if(cur&&!fits(cur,0,1))place(); lockTmr=null;},500);}
+  // Reset lock delay when piece moves laterally or rotates while it could still fall
+  function rl(){if(lockTmr&&fits(cur,0,1)){clearTimeout(lockTmr);lockTmr=null;}}
+
+  function rot(d=1){
+    if(!cur)return;
+    const sv={x:cur.x,y:cur.y,c:cur.c.map(x=>[...x]),r:cur.rot};
+    const pr=cur.rotate(d);
+    if(fits(cur)){Audio.play('rotate');rl();return;}
+    for(const[kx,ky]of(KICKS[`${pr}>${cur.rot}`]||[])){
+      if(fits(cur,kx,ky)){cur.x+=kx;cur.y+=ky;Audio.play('rotate');rl();return;}
+    }
+    cur.c=sv.c;cur.x=sv.x;cur.y=sv.y;cur.rot=sv.r;
+  }
+
+  function hold(){
+    if(holdUsed||!cur)return; Audio.play('hold');
+    if(!hld){hld=new Piece(cur.def);cur=nxt;nxt=pop();}
+    else{const t=new Piece(cur.def);cur=new Piece(hld.def);if(!fits(cur)){cur=t;return;}hld=t;}
+    holdUsed=true;
+    yAcc=0; xVisual=cur.x;
+    hc.style.opacity='.35'; setTimeout(()=>hc.style.opacity='1',300);
+    renderMini(hctx,hld,hc.clientWidth||112,hc.clientHeight||52);
+  }
+
+  function addScore(n) {
+    const prevLvl=level;
+    if(n>0){
+      combo++;
+      const isTetris=(n===4);
+      const isBtb=isTetris&&btbActive;
+      const comboBonus=combo>1?(combo-1)*50*level:0;
+      let pts=PTS[n]*level+comboBonus;
+      if(isBtb){pts=Math.floor(pts*1.5);Audio.play('btb');}
+      else{Audio.play({1:'clear1',2:'clear2',3:'clear3',4:'tetris'}[n]||'clear1');}
+      btbActive=isTetris;
+      score+=pts;
+      showPop(n,pts,isBtb,combo);
+      if(n>=2)shakeBoard();
+    } else {
+      combo=0; if(n===0)btbActive=false;
+    }
+    lines+=n;
+    level=Math.min(Math.floor(lines/8)+1,20);
+    window._gameLevel=level;
+    if(level!==prevLvl){
+      Audio.play('levelUp');
+      showLevelUp(level);
+      bgTransition(level);
+      cleanBoardOnLevelUp();
+    }
+  }
+
+  function cleanBoardOnLevelUp() {
+    const mid = Math.floor(ROWS / 2);
+    // Contar filas ocupadas por encima de la mitad
+    let topFilled = 0;
+    for(let r = 0; r < mid; r++) {
+      if(board[r].some(c => c !== null)) topFilled++;
+    }
+    if(topFilled === 0) return; // tablero está por debajo de la mitad, no hacer nada
+    // Eliminar todas las filas por encima de la mitad
+    // Reemplazarlas por filas vacías arriba
+    const below = board.slice(mid); // filas de la mitad hacia abajo, intactas
+    const empty = Array.from({length: mid}, () => Array(COLS).fill(null));
+    board = [...empty, ...below];
+    // Efecto visual — flash en las filas eliminadas
+    for(let r = 0; r < mid; r++) {
+      spawnParticlesRow(r);
+    }
+  }
+
+  function showPop(n,pts,btb,cmb) {
+    const labels=['','','DOUBLE','TRIPLE','✦ TETRIS ✦'];
+    const wrap=document.getElementById('canvas-wrap');
+    const cssW=gc.clientWidth, cssH=gc.clientHeight;
+
+    // Texto pequeño de puntos — esquina superior
+    const el=document.createElement('div');
+    el.className='spop';
+    el.style.cssText=`left:${cssW/2-90}px;top:${cssH*0.28}px;font-size:${btb?20:n>=4?22:n>=2?18:14}px;color:${btb?'#FFE033':n>=4?'var(--green)':n>=2?'var(--accent)':'var(--white)'};width:180px;`;
+    el.textContent=`+${pts.toLocaleString()}`;
+    wrap.appendChild(el); setTimeout(()=>el.remove(),1000);
+
+    // Texto grande central — solo para eventos especiales
+    const showBig = btb || n>=4 || cmb>=3;
+    if(showBig) {
+      const big=document.createElement('div');
+      big.className='bigpop';
+      const centerY = cssH * 0.42;
+      let label='', color='', size=28;
+      if(btb)       { label='BACK TO BACK'; color='#FFE033'; size=24; }
+      else if(n>=4) { label='✦ TETRIS ✦';  color='var(--green)'; size=32; }
+      if(cmb>=3)    { label=(label?label+'\n':'') + `${cmb}× COMBO`; color=color||'var(--orange)'; size=Math.max(size,26); }
+      big.style.cssText=`top:${centerY}px;font-size:${size}px;color:${color};`;
+      big.textContent=label;
+      wrap.appendChild(big); setTimeout(()=>big.remove(),950);
+    } else if(cmb>1) {
+      // Combo pequeño
+      const cel=document.createElement('div');
+      cel.className='spop';
+      cel.style.cssText=`left:${cssW/2-60}px;top:${cssH*0.38}px;font-size:13px;color:var(--orange);width:120px;`;
+      cel.textContent=`${cmb}× COMBO`;
+      wrap.appendChild(cel); setTimeout(()=>cel.remove(),900);
+    }
+
+    // Label de líneas (DOUBLE, TRIPLE, TETRIS) pequeño
+    const mainLabel = btb?'':labels[n]||'';
+    if(mainLabel && !showBig) {
+      const ll=document.createElement('div');
+      ll.className='spop';
+      ll.style.cssText=`left:${cssW/2-80}px;top:${cssH*0.38}px;font-size:16px;color:${n>=4?'var(--green)':'var(--accent)'};width:160px;`;
+      ll.textContent=mainLabel;
+      wrap.appendChild(ll); setTimeout(()=>ll.remove(),1000);
+    }
+  }
+
+  function doGameOver(){
+    gameOver=true;
+    Audio.stopMusic(); Audio.play('gameOver');
+    dangerMode=false; window._dangerMode=false; Audio.setDanger(false);
+    document.getElementById('canvas-wrap').classList.remove('danger-zone');
+    document.getElementById('header').classList.remove('danger');
+    highScores.push(score);
+    highScores.sort((a,b)=>b-a); highScores=highScores.slice(0,5);
+    try{localStorage.setItem('tetrax6_hs',JSON.stringify(highScores));}catch(e){}
+    // Snapshot del board para la animación
+    gameOverAnim = { progress: 0, snapshot: board.map(row=>[...row]) };
+    // Animar en canvas — loop independiente sin tocar el game loop
+    const goLoop = () => {
+      gameOverAnim.progress = Math.min(1, gameOverAnim.progress + 0.025);
+      render(0);
+      if(gameOverAnim.progress < 1) { requestAnimationFrame(goLoop); }
+      else {
+        gameOverAnim = null;
+        window.TetraxBridge?.showInterstitial();
+        showOvl('gameover');
+      }
+    };
+    requestAnimationFrame(goLoop);
+  }
+
+  // Kotlin consulta si es seguro recargar el HTML sin interrumpir al usuario
+  window.canReload = function() {
+    const safe = !started || gameOver || paused;
+    console.log('[TETRAX] canReload=' + safe + ' started=' + started + ' gameOver=' + gameOver + ' paused=' + paused);
+    return safe;
+  };
+
+  // Callback invocado por Kotlin cuando el rewarded se completa con éxito
+  window.onRewardGranted = function() {
+    hideOvl('gameover');
+    gameOver = false;
+
+    // Borrar todo excepto las 4 filas inferiores — segunda oportunidad real
+    const keepRows = 4;
+    const keep = board.slice(ROWS - keepRows);
+    board = Array.from({length: ROWS - keepRows}, () => Array(COLS).fill(null)).concat(keep);
+
+    cur = pop(); nxt = pop(); holdUsed = false;
+    yAcc = 0; xVisual = cur.x;
+    if(!fits(cur)){ doGameOver(); return; }
+    updateUI();
+    Audio.startMusic();
+    prevFrameTime = 0;
+    requestAnimationFrame(loop);
+  };
+
+  // ─── HD Block rendering ───────────────────────────
+  // Parses a hex color to [r, g, b]
+  function hexRGB(hex) {
+    const n = parseInt(hex.replace('#',''), 16);
+    return [(n>>16)&0xff, (n>>8)&0xff, n&0xff];
+  }
+
+  // Lightens or darkens a hex color by amount v (-255..255)
+  function shade(hex, v) {
+    const [r,g,b] = hexRGB(hex);
+    const c = x => Math.min(255, Math.max(0, x+v));
+    return `rgb(${c(r)},${c(g)},${c(b)})`;
+  }
+
+  // Mixes two rgb arrays at ratio t (0=a, 1=b)
+  function mixRGB(a, b, t) {
+    return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;
+  }
+
+  // ─── drawBlock: HD version with 3D bevel and rounded inner corners ──
+  function drawBlock(cx, cy, col, drk, a=1) {
+    const px = cx * CELL, py = cy * CELL, s = CELL;
+    const R = Math.max(2, s * 0.12); // corner radius scales with cell size
+    const gap = 1;                    // gap between blocks (border)
+    const x0 = px + gap, y0 = py + gap;
+    const w = s - gap*2, h = s - gap*2;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+
+    // 1 ── Dark background fill (inset shadow effect)
+    ctx.fillStyle = drk;
+    roundRect(ctx, x0, y0, w, h, R);
+    ctx.fill();
+
+    // 2 ── Main face fill with subtle vertical gradient (top lighter → bottom darker)
+    const [r,g,b] = hexRGB(col);
+    const grad = ctx.createLinearGradient(px, py, px, py+s);
+    grad.addColorStop(0,   mixRGB([r,g,b], [255,255,255], 0.22)); // top: 22% lighter
+    grad.addColorStop(0.5, col);
+    grad.addColorStop(1,   mixRGB([r,g,b], [0,0,0], 0.28));       // bottom: 28% darker
+    const inset = gap + 2;
+    roundRect(ctx, px+inset, py+inset, s-inset*2, s-inset*2, Math.max(1, R-1));
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 3 ── Top highlight strip (bright glint across top edge)
+    const hiH = Math.max(3, s * 0.14);
+    ctx.save();
+    roundRect(ctx, px+inset, py+inset, s-inset*2, hiH, Math.max(1, R-1));
+    ctx.clip();
+    const hiGrad = ctx.createLinearGradient(0, py+inset, 0, py+inset+hiH);
+    hiGrad.addColorStop(0, `rgba(255,255,255,0.42)`);
+    hiGrad.addColorStop(1, `rgba(255,255,255,0.06)`);
+    ctx.fillStyle = hiGrad;
+    ctx.fillRect(px+inset, py+inset, s-inset*2, hiH);
+    ctx.restore();
+
+    // 4 ── Left edge highlight (thin strip)
+    const edgeW = Math.max(2, s * 0.07);
+    ctx.save();
+    roundRect(ctx, px+inset, py+inset, edgeW, s-inset*2, Math.max(1, R-1));
+    ctx.clip();
+    ctx.fillStyle = `rgba(255,255,255,0.18)`;
+    ctx.fillRect(px+inset, py+inset, edgeW, s-inset*2);
+    ctx.restore();
+
+    // 5 ── Bottom shadow strip
+    const shH = Math.max(3, s * 0.14);
+    ctx.save();
+    roundRect(ctx, px+inset, py+s-inset-shH, s-inset*2, shH, Math.max(1, R-1));
+    ctx.clip();
+    ctx.fillStyle = `rgba(0,0,0,0.35)`;
+    ctx.fillRect(px+inset, py+s-inset-shH, s-inset*2, shH);
+    ctx.restore();
+
+    // 6 ── Right shadow strip
+    const shW = Math.max(2, s * 0.08);
+    ctx.save();
+    roundRect(ctx, px+s-inset-shW, py+inset, shW, s-inset*2, Math.max(1, R-1));
+    ctx.clip();
+    ctx.fillStyle = `rgba(0,0,0,0.25)`;
+    ctx.fillRect(px+s-inset-shW, py+inset, shW, s-inset*2);
+    ctx.restore();
+
+    // 7 ── Outer edge glow stroke
+    ctx.globalAlpha = a * 0.55;
+    ctx.strokeStyle = shade(col, 30);
+    ctx.lineWidth = 0.8;
+    roundRect(ctx, x0+0.5, y0+0.5, w-1, h-1, R);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Helper: draws a rounded rect path (reusable for clip + fill + stroke)
+  function roundRect(c, x, y, w, h, r) {
+    if(w < 2*r) r = w/2;
+    if(h < 2*r) r = h/2;
+    c.beginPath();
+    c.moveTo(x+r, y);
+    c.lineTo(x+w-r, y);   c.arcTo(x+w, y,   x+w, y+r,   r);
+    c.lineTo(x+w, y+h-r); c.arcTo(x+w, y+h, x+w-r, y+h, r);
+    c.lineTo(x+r, y+h);   c.arcTo(x,   y+h, x,   y+h-r, r);
+    c.lineTo(x, y+r);     c.arcTo(x,   y,   x+r,  y,     r);
+    c.closePath();
+  }
+
+  function ghostY(){let d=0;while(fits(cur,0,d+1))d++;return cur.y+d;}
+
+  // ─── Background palette system ───────────────────
+  // 6 dark palettes, each with: bg (fill), grid (line), accent (glow top)
+  // They cycle every 2 levels and interpolate smoothly over ~2.5s on level-up.
+  const PALETTES = [
+    { bg:[8,11,20],    grid:[56,190,255],  accent:[56,190,255]  }, // azul noche
+    { bg:[4,20,8],     grid:[40,230,90],   accent:[40,230,90]   }, // esmeralda
+    { bg:[18,5,25],    grid:[190,60,255],  accent:[190,60,255]  }, // violeta
+    { bg:[25,4,4],     grid:[255,60,60],   accent:[255,60,60]   }, // carmesí
+    { bg:[22,14,2],    grid:[255,180,20],  accent:[255,180,20]  }, // ámbar
+    { bg:[2,20,22],    grid:[20,230,220],  accent:[20,230,220]  }, // turquesa
+    { bg:[20,8,14],    grid:[255,80,160],  accent:[255,80,160]  }, // rosa oscuro
+    { bg:[8,16,20],    grid:[80,200,255],  accent:[80,200,255]  }, // azul hielo
+  ];
+
+  let bgFrom = {...PALETTES[0]};
+  let bgTo   = {...PALETTES[0]};
+  let bgT    = 1;
+  let bgLastLevel = 1;
+
+  function bgTransition(newLevel) {
+    // One palette per level, cycling through all
+    const idx = (newLevel - 1) % PALETTES.length;
+    bgFrom = lerpPalette(bgFrom, bgTo, bgT);
+    bgTo   = PALETTES[idx];
+    bgT    = 0;
+  }
+
+  function lerpPalette(a, b, t) {
+    const lerp = (av, bv) => av.map((v, i) => Math.round(v + (bv[i] - v) * t));
+    return { bg: lerp(a.bg, b.bg), grid: lerp(a.grid, b.grid), accent: lerp(a.accent, b.accent) };
+  }
+
+  function currentPalette(dt) {
+    if(bgT < 1) bgT = Math.min(1, bgT + dt / 2.0);
+    const pal = lerpPalette(bgFrom, bgTo, bgT);
+    const [br,bg,bb] = pal.bg;
+    document.body.style.background = `rgb(${Math.max(0,br-3)},${Math.max(0,bg-3)},${Math.max(0,bb-3)})`;
+    return pal;
+  }
+
+  function render(dt=0){
+    const cssW = gc.clientWidth, cssH = gc.clientHeight;
+    if(!cssW)return;
+
+    const pal = currentPalette(dt);
+    const [br,bg,bb] = pal.bg;
+    const [gr,gg,gb] = pal.grid;
+    const [ar,ag,ab] = pal.accent;
+
+    // Background
+    ctx.fillStyle=`rgb(${br},${bg},${bb})`; ctx.fillRect(0,0,cssW,cssH);
+
+    // Subtle radial vignette from palette accent colour
+    const vg = ctx.createRadialGradient(cssW/2,cssH/2,cssH*0.1,cssW/2,cssH/2,cssH*0.9);
+    vg.addColorStop(0,`rgba(${ar},${ag},${ab},0.07)`);
+    vg.addColorStop(1,`rgba(0,0,0,0.22)`);
+    ctx.fillStyle=vg; ctx.fillRect(0,0,cssW,cssH);
+
+    if(dangerMode){
+      const dg=ctx.createLinearGradient(0,0,0,ROWS*CELL*0.3);
+      dg.addColorStop(0,'rgba(255,75,92,0.10)'); dg.addColorStop(1,'transparent');
+      ctx.fillStyle=dg; ctx.fillRect(0,0,cssW,ROWS*CELL*0.3);
+    }
+
+    // Grid lines tinted with palette colour
+    ctx.strokeStyle=`rgba(${gr},${gg},${gb},0.055)`; ctx.lineWidth=1;
+    for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*CELL);ctx.lineTo(COLS*CELL,r*CELL);ctx.stroke();}
+    for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*CELL,0);ctx.lineTo(c*CELL,ROWS*CELL);ctx.stroke();}
+
+    board.forEach((row,ry)=>row.forEach((cell,cx)=>{if(cell)drawBlock(cx,ry,cell.col,cell.drk);}));
+
+    // ── Game over animation — filas caen de abajo hacia arriba ──
+    if(gameOverAnim) {
+      const p = gameOverAnim.progress;
+      for(let ry = ROWS-1; ry >= 0; ry--) {
+        // Cada fila empieza con delay escalonado desde abajo
+        const rowDelay = (ROWS-1-ry) / ROWS;
+        const rowP = Math.max(0, Math.min(1, (p - rowDelay * 0.4) * 2.5));
+        if(rowP <= 0) continue;
+        gameOverAnim.snapshot[ry].forEach((cell, cx) => {
+          if(!cell) return;
+          const [r,g,b] = hexRGB(cell.col);
+          // Desaturar hacia gris
+          const gray = Math.round(r*0.3 + g*0.59 + b*0.11);
+          const cr = Math.round(r + (gray-r)*rowP);
+          const cg = Math.round(g + (gray-g)*rowP);
+          const cb = Math.round(b + (gray-b)*rowP);
+          // Caída con gravedad
+          const dropY = rowP * rowP * CELL * 3;
+          const alpha = Math.max(0, 1 - rowP * 0.9);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+          roundRect(ctx, cx*CELL+1, ry*CELL+1+dropY, CELL-2, CELL-2, Math.max(1,CELL*0.1));
+          ctx.fill();
+          // Borde sutil
+          ctx.globalAlpha = alpha * 0.5;
+          ctx.strokeStyle = `rgb(${Math.min(255,cr+40)},${Math.min(255,cg+40)},${Math.min(255,cb+40)})`;
+          ctx.lineWidth = 0.8;
+          roundRect(ctx, cx*CELL+1, ry*CELL+1+dropY, CELL-2, CELL-2, Math.max(1,CELL*0.1));
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    }
+
+    // ── Line clear disintegration particles (canvas) ──
+    if(clearAnim) {
+      clearAnim.progress = Math.min(1, clearAnim.progress + 0.05);
+      const p = clearAnim.progress;
+      clearAnim.rows.forEach(({ri, snap}) => {
+        snap.forEach((cell, cx) => {
+          if(!cell) return;
+          const [r,g,b] = hexRGB(cell.col);
+          for(let i = 0; i < 6; i++) {
+            const seed  = (cx*7  + ri*13 + i*31) % 100 / 100;
+            const seed2 = (cx*11 + ri*17 + i*43) % 100 / 100;
+            const seed3 = (cx*3  + ri*5  + i*7 ) % 100 / 100;
+            const angle = seed3 * Math.PI * 2;
+            const dist  = 18 + seed * 38;
+            const px2   = cx*CELL + seed*CELL  + Math.cos(angle)*dist*p;
+            const py2   = ri*CELL + seed2*CELL + Math.sin(angle)*dist*p;
+            const size  = Math.max(0.5, CELL * 0.16 * (1-p));
+            const alpha = Math.max(0, 1 - p * 1.3);
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = `rgb(${Math.min(255,r+60)},${Math.min(255,g+60)},${Math.min(255,b+60)})`;
+            ctx.beginPath();
+            ctx.arc(px2, py2, size, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+          }
+        });
+      });
+      if(clearAnim.progress >= 1) clearAnim = null;
+    }
+
+
+
+    if(cur&&started&&!gameOver){
+      const gy=ghostY();
+      cur.c.forEach(([cx,cy])=>{
+        const ax=cur.x+cx, ay=gy+cy;
+        if(ay>=0&&ay<ROWS){
+          const [r,g,b]=hexRGB(cur.col);
+          ctx.save();
+          // Relleno muy sutil
+          ctx.globalAlpha=0.06;
+          ctx.fillStyle=cur.col;
+          roundRect(ctx,ax*CELL+2,ay*CELL+2,CELL-4,CELL-4,Math.max(1,CELL*0.1));
+          ctx.fill();
+          // Borde fino
+          ctx.globalAlpha=0.28;
+          ctx.strokeStyle=`rgb(${Math.min(255,r+40)},${Math.min(255,g+40)},${Math.min(255,b+40)})`;
+          ctx.lineWidth=1.2;
+          roundRect(ctx,ax*CELL+2,ay*CELL+2,CELL-4,CELL-4,Math.max(1,CELL*0.1));
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+      const drawY=cur.y+yAcc, drawX=xVisual;
+      cur.c.forEach(([cx,cy])=>{
+        if(drawY+cy >= -1) drawBlockF(drawX+cx, drawY+cy, cur.col, cur.drk);
+      });
+    }
+
+  }
+
+  // drawBlock at fractional (sub-cell) coordinates
+  function drawBlockF(fcx, fcy, col, drk) {
+    const px=fcx*CELL, py=fcy*CELL, s=CELL;
+    const R=Math.max(2,s*0.12), gap=1;
+    const x0=px+gap, y0=py+gap, w=s-gap*2, h=s-gap*2;
+    const inset=gap+2;
+    ctx.save();
+    ctx.fillStyle=drk; roundRect(ctx,x0,y0,w,h,R); ctx.fill();
+    const [r,g,b]=hexRGB(col);
+    const grad=ctx.createLinearGradient(px,py,px,py+s);
+    grad.addColorStop(0, mixRGB([r,g,b],[255,255,255],0.22));
+    grad.addColorStop(0.5, col);
+    grad.addColorStop(1, mixRGB([r,g,b],[0,0,0],0.28));
+    roundRect(ctx,px+inset,py+inset,s-inset*2,s-inset*2,Math.max(1,R-1));
+    ctx.fillStyle=grad; ctx.fill();
+    const hiH=Math.max(3,s*0.14);
+    ctx.save();
+    roundRect(ctx,px+inset,py+inset,s-inset*2,hiH,Math.max(1,R-1)); ctx.clip();
+    const hiG=ctx.createLinearGradient(0,py+inset,0,py+inset+hiH);
+    hiG.addColorStop(0,'rgba(255,255,255,0.42)'); hiG.addColorStop(1,'rgba(255,255,255,0.06)');
+    ctx.fillStyle=hiG; ctx.fillRect(px+inset,py+inset,s-inset*2,hiH);
+    ctx.restore();
+    ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(px+inset,py+inset,Math.max(2,s*0.07),s-inset*2);
+    ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fillRect(px+inset,py+s-inset-Math.max(3,s*0.14),s-inset*2,Math.max(3,s*0.14));
+    ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(px+s-inset-Math.max(2,s*0.08),py+inset,Math.max(2,s*0.08),s-inset*2);
+    ctx.globalAlpha=0.55; ctx.strokeStyle=shade(col,30); ctx.lineWidth=0.8;
+    roundRect(ctx,x0+0.5,y0+0.5,w-1,h-1,R); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ─── renderMini: also HD ─────────────────────────
+  function renderMini(mc, piece, cssW, cssH) {
+    mc.fillStyle='#0E1422';mc.fillRect(0,0,cssW,cssH);
+    if(!piece)return;
+    const CS = Math.min(Math.floor(cssW/4), Math.floor(cssH/3), 20);
+    const minX=Math.min(...piece.c.map(c=>c[0])),maxX=Math.max(...piece.c.map(c=>c[0]));
+    const minY=Math.min(...piece.c.map(c=>c[1])),maxY=Math.max(...piece.c.map(c=>c[1]));
+    const ox=Math.floor((cssW-(maxX-minX+1)*CS)/2)-minX*CS;
+    const oy=Math.floor((cssH-(maxY-minY+1)*CS)/2)-minY*CS;
+    const R = Math.max(1, CS * 0.12);
+
+    piece.c.forEach(([cx,cy])=>{
+      const px=ox+cx*CS, py=oy+cy*CS, s=CS;
+      const inset=1;
+
+      // dark bg
+      mc.fillStyle=piece.drk;
+      roundRectCtx(mc, px+inset, py+inset, s-inset*2, s-inset*2, R);
+      mc.fill();
+
+      // main face
+      const [r,g,b] = hexRGB(piece.col);
+      const grad=mc.createLinearGradient(px,py,px,py+s);
+      grad.addColorStop(0, mixRGB([r,g,b],[255,255,255],0.22));
+      grad.addColorStop(1, mixRGB([r,g,b],[0,0,0],0.28));
+      roundRectCtx(mc, px+inset+1, py+inset+1, s-inset*2-2, s-inset*2-2, Math.max(1,R-1));
+      mc.fillStyle=grad;
+      mc.fill();
+
+      // top highlight
+      mc.fillStyle='rgba(255,255,255,0.32)';
+      mc.fillRect(px+inset+1, py+inset+1, s-inset*2-2, Math.max(2, s*0.18));
+
+      // outer stroke
+      mc.strokeStyle=shade(piece.col,20);
+      mc.lineWidth=0.7;
+      roundRectCtx(mc, px+inset+0.4, py+inset+0.4, s-inset*2-0.8, s-inset*2-0.8, R);
+      mc.stroke();
+    });
+  }
+
+  function roundRectCtx(c,x,y,w,h,r){
+    if(w<2*r)r=w/2; if(h<2*r)r=h/2;
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.arcTo(x+w,y,x+w,y+r,r);
+    c.lineTo(x+w,y+h-r); c.arcTo(x+w,y+h,x+w-r,y+h,r);
+    c.lineTo(x+r,y+h); c.arcTo(x,y+h,x,y+h-r,r);
+    c.lineTo(x,y+r); c.arcTo(x,y,x+r,y,r);
+    c.closePath();
+  }
+
+  // ─── UI ──────────────────────────────────────────
+  function updateUI(){
+    updateScore();
+    const inlvl = Math.max(0, lines - (level-1)*8);
+    document.getElementById('lvl-n').textContent=level;
+    document.getElementById('h-level').textContent=level;
+    document.getElementById('lvl-bar').style.width=Math.min(inlvl/8*100,100)+'%';
+    document.getElementById('lvl-hint').textContent=`${inlvl} / 8`;
+    document.querySelectorAll('.pip').forEach((p,i)=>p.classList.toggle('on',i<level));
+    document.getElementById('lines-n').textContent=lines;
+    document.getElementById('h-lines').textContent=lines;
+    const cd=document.getElementById('combo-disp');
+    if(combo>1){cd.textContent=`${combo}× COMBO`;cd.classList.toggle('hot',combo>=4);}
+    else{cd.textContent='—';cd.classList.remove('hot');}
+    document.getElementById('lvl-n-p').textContent=level;
+    document.getElementById('lvl-bar-p').style.width=Math.min(inlvl/8*100,100)+'%';
+    document.getElementById('lvl-hint-p').textContent=`${inlvl} / 8`;
+    document.getElementById('lines-n-p').textContent=lines;
+
+    // 3 next pieces — renderMini receives CSS size
+    [0,1,2].forEach(i=>{
+      const p = i===0 ? nxt : new Piece(peek(i-1));
+      const c = ncList[i];
+      renderMini(nctxList[i], p, c.clientWidth||112, c.clientHeight||48);
+    });
+
+    const hcCssW = hc.clientWidth||112, hcCssH = hc.clientHeight||52;
+    renderMini(hctx, hld, hcCssW, hcCssH);
+
+    const ncp=document.getElementById('nc-p'), hcp=document.getElementById('hc-p');
+    if(ncp)renderMini(ncp.getContext('2d'),nxt,ncp.clientWidth||86,ncp.clientHeight||54);
+    if(hcp)renderMini(hcp.getContext('2d'),hld,hcp.clientWidth||86,hcp.clientHeight||54);
+    renderHS();
+  }
+
+  function updateScore(){
+    document.getElementById('h-score').textContent=score.toLocaleString('es-ES');
+    document.getElementById('h-best').textContent=Math.max(score,...highScores).toLocaleString('es-ES');
+  }
+  function renderHS(){
+    const all=[...highScores];while(all.length<5)all.push(0);
+    const html=all.slice(0,5).map((s,i)=>`<div class="hs-row ${s===score&&s>0?'me':''}"><span class="hs-rank">#${i+1}</span><span>${s>0?s.toLocaleString('es-ES'):'---'}</span></div>`).join('');
+    document.getElementById('hscores').innerHTML=html;
+    const hp=document.getElementById('hscores-p');
+    if(hp)hp.innerHTML=all.slice(0,4).map((s,i)=>`<div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:8px;color:var(--orange);font-family:var(--font-display);">#${i+1}</span><span style="font-size:10px;color:${s===score&&s>0?'var(--green)':'var(--mid)'};">${s>0?s.toLocaleString('es-ES'):'---'}</span></div>`).join('');
+  }
+
+  // ─── Overlays ────────────────────────────────────
+  const ovls={};
+  function makeOverlays(){
+    const cw=document.getElementById('canvas-wrap');
+    ovls.start=mkOvl(cw,'start',`
+      <canvas id="start-bg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.35;"></canvas>
+      <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;max-width:440px;gap:0;padding:20px;">
+
+        <!-- Logo -->
+        <div style="font-family:var(--font-display);font-size:clamp(52px,10vw,88px);font-weight:900;letter-spacing:8px;line-height:1;margin-bottom:4px;animation:pulse 2.2s ease-in-out infinite;">
+          <span style="color:var(--accent);text-shadow:0 0 40px rgba(56,190,255,0.7);">TETR</span><span style="color:var(--orange);text-shadow:0 0 40px rgba(255,122,61,0.7);">AX</span>
+        </div>
+        <div style="font-size:clamp(9px,1.8vw,12px);letter-spacing:5px;color:var(--mid);margin-bottom:clamp(24px,5vh,44px);text-transform:uppercase;animation:pulse 2.2s ease-in-out infinite;">${T.tagline}</div>
+
+        <!-- Controles -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:clamp(20px,4vh,36px);">
+          <div style="background:rgba(56,190,255,0.07);border:1px solid rgba(56,190,255,0.22);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;flex-shrink:0;">↔</span>
+            <div><div style="font-size:10px;font-weight:700;color:var(--white);letter-spacing:1px;">${T.swipe}</div><div style="font-size:9px;color:var(--mid);margin-top:2px;">${T.swipeSub}</div></div>
+          </div>
+          <div style="background:rgba(56,190,255,0.07);border:1px solid rgba(56,190,255,0.22);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;flex-shrink:0;">👆</span>
+            <div><div style="font-size:10px;font-weight:700;color:var(--white);letter-spacing:1px;">${T.tap}</div><div style="font-size:9px;color:var(--mid);margin-top:2px;">${T.tapSub}</div></div>
+          </div>
+          <div style="background:rgba(255,122,61,0.07);border:1px solid rgba(255,122,61,0.22);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;flex-shrink:0;">↓</span>
+            <div><div style="font-size:10px;font-weight:700;color:var(--white);letter-spacing:1px;">${T.drag}</div><div style="font-size:9px;color:var(--mid);margin-top:2px;">${T.dragSub}</div></div>
+          </div>
+          <div style="background:rgba(255,122,61,0.07);border:1px solid rgba(255,122,61,0.22);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;flex-shrink:0;">⚡</span>
+            <div><div style="font-size:10px;font-weight:700;color:var(--white);letter-spacing:1px;">${T.flick}</div><div style="font-size:9px;color:var(--mid);margin-top:2px;">${T.flickSub}</div></div>
+          </div>
+        </div>
+
+        <!-- Récord personal -->
+        <div id="start-best" style="margin-bottom:clamp(18px,3.5vh,28px);text-align:center;display:none;">
+          <div style="font-size:9px;letter-spacing:3px;color:var(--mid);margin-bottom:6px;">${T.personalBest}</div>
+          <div id="start-best-val" style="font-family:var(--font-display);font-size:clamp(22px,5vw,36px);font-weight:700;color:var(--green);text-shadow:0 0 16px rgba(94,240,138,0.5);">0</div>
+        </div>
+
+        <!-- Botón -->
+        <button class="btn" id="ob-start" style="
+          font-size:clamp(11px,2.5vw,16px);letter-spacing:4px;
+          padding:clamp(15px,2.5vh,20px) clamp(24px,6vw,60px);
+          min-width:clamp(200px,55vw,280px);
+          white-space:nowrap;
+          background:rgba(56,190,255,0.08);
+          border:1.5px solid var(--accent);
+          box-shadow:0 0 24px rgba(56,190,255,0.2);
+          transition:background .15s, box-shadow .15s;
+        ">▶ &nbsp;${T.newGame}</button>
+
+        <div style="font-size:8px;color:var(--dim);letter-spacing:2px;margin-top:16px;">v6 HD · TETRAX</div>
+      </div>`);
+    on('ob-start',startGame);
+
+    // Piezas cayendo de fondo en el canvas de la pantalla de inicio
+    setTimeout(()=>startBgAnim(), 50);
+
+    // Récord personal
+    const bestScore = Math.max(0,...highScores);
+    if(bestScore > 0){
+      const el = document.getElementById('start-best');
+      if(el){ el.style.display='block'; document.getElementById('start-best-val').textContent = bestScore.toLocaleString(); }
+    }
+
+    ovls.pause=mkOvl(cw,'pause',`
+      <div class="ovl-title" style="font-size:clamp(22px,4vw,40px);">${T.paused}</div>
+      <div class="ovl-sub" style="margin-bottom:22px;">${T.gamePaused}</div>
+      <button class="btn" id="ob-resume">${T.resume}</button>`);
+    on('ob-resume',togglePause);
+
+    ovls.gameover=mkOvl(cw,'gameover',`
+      <div class="ovl-title" style="color:var(--orange);font-size:clamp(20px,3.5vw,36px);">${T.gameOver}</div>
+      <div class="ovl-score" id="go-score">0</div>
+      <div class="ovl-det"   id="go-det"></div>
+      <button class="btn" id="ob-continue" style="border-color:var(--green);color:var(--green);display:none;">
+        ▶ &nbsp;${T.continueAd}
+      </button>
+      <button class="btn"   id="ob-retry">${T.playAgain}</button>
+      <button class="btn o" id="ob-menu">${T.mainMenu}</button>`);
+    on('ob-retry',()=>{hideOvl('gameover');startGame();});
+    on('ob-menu', ()=>{hideOvl('gameover');showOvl('start');init();render();startBgAnim();});
+    on('ob-continue', ()=>{ window.TetraxBridge?.showRewarded(); });
+
+    // Mostrar botón continuar solo si el bridge está disponible
+    // (no en navegador, sí en la app Android)
+    if(window.TetraxBridge) {
+      const btn = document.getElementById('ob-continue');
+      if(btn) btn.style.display = 'block';
+    }
+
+    ovls.start.classList.remove('hidden');
+  }
+  function startBgAnim() {
+    const canvas = document.getElementById('start-bg');
+    if(!canvas) return;
+    const ctx2 = canvas.getContext('2d');
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const W = canvas.width, H = canvas.height;
+
+    const COLORS = ['#00E5FF','#FFE033','#CC44FF','#3DFF7A','#FF4B5C','#4D9FFF','#FF8C3D'];
+    const CS = Math.max(18, Math.floor(W / 18)); // tamaño celda
+
+    // Generar piezas flotantes
+    const pieces = [];
+    for(let i = 0; i < 12; i++) {
+      pieces.push({
+        x: Math.random() * W,
+        y: Math.random() * H - H,
+        speed: 0.4 + Math.random() * 0.8,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        blocks: [[0,0],[1,0],[0,1],[1,1]], // O-piece por defecto
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.01,
+        alpha: 0.3 + Math.random() * 0.4,
+      });
+      // Asignar forma aleatoria
+      const shapes = [
+        [[0,0],[1,0],[0,1],[1,1]],        // O
+        [[0,0],[1,0],[2,0],[3,0]],        // I
+        [[1,0],[0,1],[1,1],[2,1]],        // T
+        [[0,0],[0,1],[1,1],[2,1]],        // J
+        [[2,0],[0,1],[1,1],[2,1]],        // L
+        [[1,0],[2,0],[0,1],[1,1]],        // S
+        [[0,0],[1,0],[1,1],[2,1]],        // Z
+      ];
+      pieces[i].blocks = shapes[Math.floor(Math.random() * shapes.length)];
+    }
+
+    let animId;
+    function drawBg() {
+      // Solo dibujar si el overlay de inicio está visible
+      const ovl = document.getElementById('ovl-start');
+      if(!ovl || ovl.classList.contains('hidden')) { cancelAnimationFrame(animId); return; }
+
+      ctx2.clearRect(0, 0, W, H);
+      pieces.forEach(p => {
+        p.y += p.speed;
+        p.rot += p.rotSpeed;
+        if(p.y > H + CS*4) { p.y = -CS*4; p.x = Math.random()*W; }
+        ctx2.save();
+        ctx2.globalAlpha = p.alpha;
+        const cx = p.x + CS;
+        const cy = p.y + CS;
+        ctx2.translate(cx, cy);
+        ctx2.rotate(p.rot);
+        p.blocks.forEach(([bx,by]) => {
+          const px = (bx - 1.5) * CS;
+          const py = (by - 1.5) * CS;
+          ctx2.fillStyle = p.color;
+          ctx2.fillRect(px+1, py+1, CS-2, CS-2);
+          // Highlight top
+          ctx2.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx2.fillRect(px+1, py+1, CS-2, CS*0.2);
+        });
+        ctx2.restore();
+      });
+      animId = requestAnimationFrame(drawBg);
+    }
+    drawBg();
+  }
+
+  function mkOvl(p,id,html){const el=document.createElement('div');el.className='ovl hidden';el.id='ovl-'+id;el.innerHTML=html;p.appendChild(el);return el;}
+  function on(id,fn){const el=document.getElementById(id);if(!el)return;el.addEventListener('click',fn);el.addEventListener('touchend',e=>{e.preventDefault();fn();},{passive:false});}
+  function showOvl(name){
+    if(name==='gameover'){
+      document.getElementById('go-score').textContent=score.toLocaleString();
+      document.getElementById('go-det').textContent=`${T.level} ${level} · ${lines} ${T.lines}`;
+      const btnContinue = document.getElementById('ob-continue');
+      if(btnContinue){
+        const available = window.TetraxBridge?.isRewardedReady?.() ?? false;
+        btnContinue.style.display = available ? 'block' : 'none';
+      }
+    }
+    Object.values(ovls).forEach(o=>o.classList.add('hidden'));ovls[name].classList.remove('hidden');
+  }
+  function hideOvl(name){ovls[name].classList.add('hidden');}
+
+  // ─── Game loop ───────────────────────────────────
+  // Architecture: yAcc accumulates fall progress [0..1) each frame.
+  // When yAcc >= 1 we try to drop one row. No separate lastTime/dropInt timer.
+  // softDropActive multiplies fall speed by SOFT_DROP_MULT.
+  // This means the drop is always smooth — no step-timer interference.
+  const SOFT_DROP_MULT = 12; // soft drop is 12× faster than gravity
+
+  let prevFrameTime = 0;
+
+  function startGame(){
+    Object.values(ovls).forEach(o=>o.classList.add('hidden'));
+    init(); started=true; prevFrameTime=0;
+    Audio.startMusic(); resizeCanvas();
+    requestAnimationFrame(loop);
+  }
+  function togglePause(){
+    if(!started||gameOver)return;
+    paused=!paused;
+    if(paused){ Audio.stopMusic(); showOvl('pause'); }
+    else{ Audio.startMusic(); hideOvl('pause'); prevFrameTime=0; requestAnimationFrame(loop); }
+  }
+
+  function loop(now){
+    if(paused||gameOver)return;
+
+    // dt in seconds, capped to avoid spiral-of-death after tab switch
+    if(prevFrameTime===0) prevFrameTime=now;
+    const dt = Math.min((now-prevFrameTime)/1000, 0.1);
+    prevFrameTime=now;
+
+    if(cur){
+      // ── Gravity accumulator ───────────────────────
+      // dropSpeed = rows per second. SPD values are ms per row, so:
+      const dropSpeedRPS = 1000 / SPD[level-1]; // rows/sec at current level
+      const effectiveSpeed = softDropActive
+        ? dropSpeedRPS * SOFT_DROP_MULT
+        : dropSpeedRPS;
+
+      yAcc += effectiveSpeed * dt;
+
+      // Drop as many rows as accumulated
+      while(yAcc >= 1){
+        yAcc -= 1;
+        if(fits(cur,0,1)){
+          cur.y++;
+          if(softDropActive) score+=1;
+        } else {
+          yAcc=0;
+          break;
+        }
+      }
+
+      // If piece is resting, clamp yAcc and keep lock timer running
+      if(!fits(cur,0,1)){ yAcc=0; sl(); }
+
+      // ── Smooth horizontal lerp ────────────────────
+      // xVisual chases cur.x. Speed: 12 cells/sec minimum, scales with distance.
+      const xDiff = cur.x - xVisual;
+      if(Math.abs(xDiff)<0.005){
+        xVisual=cur.x;
+      } else {
+        xVisual += xDiff * Math.min(1, (12 + Math.abs(xDiff)*8) * dt);
+      }
+    }
+
+    render(dt);
+    [0,1,2].forEach(i=>{
+      const p=i===0?nxt:new Piece(peek(i-1));
+      const c=ncList[i];
+      renderMini(nctxList[i],p,c.clientWidth||112,c.clientHeight||48);
+    });
+    requestAnimationFrame(loop);
+  }
+
+  // ─── Keyboard ────────────────────────────────────
+  const ks={},krT={},krI={};
+  document.addEventListener('keydown',e=>{
+    if(ks[e.code])return; ks[e.code]=true;
+    if(!started||gameOver){if(e.code==='Enter'||e.code==='Space')startGame();return;}
+    if(paused&&e.code==='KeyP'){togglePause();return;}
+    if(paused)return;
+    switch(e.code){
+      case 'ArrowLeft':  ml(); krT['ArrowLeft'] =setTimeout(()=>{krI['ArrowLeft'] =setInterval(()=>{if(ks['ArrowLeft']) ml();},50);},170); break;
+      case 'ArrowRight': mr(); krT['ArrowRight']=setTimeout(()=>{krI['ArrowRight']=setInterval(()=>{if(ks['ArrowRight'])mr();},50);},170); break;
+      case 'ArrowDown':  softDropActive=true; break;
+      case 'ArrowUp': case 'KeyX': rot(1); break;
+      case 'KeyZ':  rot(-1); break;
+      case 'Space': e.preventDefault(); hd(); break;
+      case 'KeyC':  hold(); break;
+      case 'KeyP':  togglePause(); break;
+    }
+  });
+  document.addEventListener('keyup',e=>{
+    ks[e.code]=false;
+    if(e.code==='ArrowDown') softDropActive=false;
+    clearTimeout(krT[e.code]); clearInterval(krI[e.code]);
+    delete krT[e.code]; delete krI[e.code];
+  });
+
+  // ─── Gesture system ───────────────────────────────
+  // Horizontal: pixel accumulator — proportional to drag speed, no steps.
+  // Vertical: softDropActive flag while finger is dragging downward.
+  // Tap = rotate. Fast flick down = hard drop. Fast flick up = rotate CCW.
+  const HORIZ_PX   = 0.52; // fraction of CELL to move one column
+  const AXIS_PX    = 9;    // px before axis is committed
+  const FLICK_Y    = 100;  // px for hard-drop flick
+  const FLICK_MS   = 280;
+  const TAP_PX     = 12;
+  const TAP_MS     = 200;
+
+  let gActive=false, gStartX=0, gStartY=0, gStartMs=0;
+  let gAxisH=false, gAxisV=false, gHAccum=0;
+  let gLastX=0, gLastY=0;
+
+  const gestureArea=document.getElementById('canvas-area');
+
+  gestureArea.addEventListener('touchstart',e=>{
+    if(!started||paused||gameOver)return;
+    e.preventDefault(); Audio.init(); Audio.resume();
+    const t=e.changedTouches[0];
+    gStartX=gLastX=t.clientX; gStartY=gLastY=t.clientY;
+    gStartMs=performance.now();
+    gHAccum=0; gAxisH=false; gAxisV=false; gActive=true;
+    softDropActive=false;
+  },{passive:false});
+
+  gestureArea.addEventListener('touchmove',e=>{
+    if(!gActive||!started||paused||gameOver)return;
+    e.preventDefault();
+    const t=e.changedTouches[0];
+    const dx=t.clientX-gLastX;
+    const dy=t.clientY-gLastY;
+    gLastX=t.clientX; gLastY=t.clientY;
+
+    const totalDx=Math.abs(t.clientX-gStartX);
+    const totalDy=t.clientY-gStartY;
+
+    if(!gAxisH&&!gAxisV){
+      if(totalDx>AXIS_PX) gAxisH=true;
+      else if(totalDy>AXIS_PX){ gAxisV=true; softDropActive=true; }
+    }
+
+    if(gAxisH){
+      gHAccum+=dx;
+      const threshold=CELL*HORIZ_PX;
+      while(gHAccum>= threshold){ mr(); gHAccum-=threshold; }
+      while(gHAccum<=-threshold){ ml(); gHAccum+=threshold; }
+    }
+    // gAxisV → softDropActive already set above; gravity loop handles the drop
+  },{passive:false});
+
+  gestureArea.addEventListener('touchend',e=>{
+    if(!gActive||!started||paused||gameOver)return;
+    e.preventDefault(); gActive=false; softDropActive=false;
+    const t=e.changedTouches[0];
+    const totalDx=Math.abs(t.clientX-gStartX);
+    const totalDy=t.clientY-gStartY;
+    const elapsed=performance.now()-gStartMs;
+    if(!gAxisH&&totalDy>FLICK_Y&&elapsed<FLICK_MS){ hd(); return; }
+    if(!gAxisH&&totalDy<-FLICK_Y&&elapsed<FLICK_MS){ rot(-1); return; }
+    if(totalDx<TAP_PX&&Math.abs(totalDy)<TAP_PX&&elapsed<TAP_MS) rot(1);
+  },{passive:false});
+
+  // ─── Touch buttons ────────────────────────────────
+  function addTouch(id,fn){
+    const el=document.getElementById(id); if(!el)return;
+    el.addEventListener('touchstart',e=>{
+      e.preventDefault(); e.stopPropagation();
+      Audio.init(); Audio.resume();
+      if(started&&!paused&&!gameOver)fn();
+    },{passive:false});
+    el.addEventListener('mousedown',e=>{e.preventDefault();if(started&&!paused&&!gameOver)fn();});
+  }
+
+  // Accelerating auto-repeat for left/right buttons
+  function addTouchRepeat(id, fn, delay0=160, minMs=40, factor=0.80){
+    const el=document.getElementById(id); if(!el)return;
+    let tid=null;
+    function startRepeat(){
+      if(!started||paused||gameOver)return;
+      fn();
+      let ms=delay0;
+      function sched(){ tid=setTimeout(()=>{ if(started&&!paused&&!gameOver)fn(); ms=Math.max(minMs,ms*factor); sched(); },ms); }
+      sched();
+    }
+    function stopRepeat(){ clearTimeout(tid); tid=null; }
+    el.addEventListener('touchstart',e=>{ e.preventDefault(); Audio.init(); Audio.resume(); startRepeat(); },{passive:false});
+    el.addEventListener('touchend',  e=>{ e.preventDefault(); stopRepeat(); },{passive:false});
+    el.addEventListener('touchcancel',()=>stopRepeat());
+    el.addEventListener('mousedown', ()=>startRepeat());
+    el.addEventListener('mouseup',   ()=>stopRepeat());
+    el.addEventListener('mouseleave',()=>stopRepeat());
+  }
+
+  // Down button: sets softDropActive while held
+  function addTouchDown(id){
+    const el=document.getElementById(id); if(!el)return;
+    const on=e=>{ e.preventDefault(); Audio.init(); Audio.resume(); if(started&&!paused&&!gameOver) softDropActive=true; };
+    const off=e=>{ e.preventDefault(); softDropActive=false; };
+    el.addEventListener('touchstart', on, {passive:false});
+    el.addEventListener('touchend',   off,{passive:false});
+    el.addEventListener('touchcancel',off,{passive:false});
+    el.addEventListener('mousedown',  ()=>{ if(started&&!paused&&!gameOver) softDropActive=true; });
+    el.addEventListener('mouseup',    ()=>softDropActive=false);
+    el.addEventListener('mouseleave', ()=>softDropActive=false);
+  }
+
+  addTouchRepeat('tb-left',  ml);
+  addTouchRepeat('tb-right', mr);
+  addTouchDown('tb-down');
+  addTouch('tb-rot',  ()=>rot(1));
+  addTouch('tb-drop', hd);
+  addTouch('tb-hold', hold);
+  document.getElementById('tb-pause').addEventListener('touchstart',e=>{e.preventDefault();togglePause();},{passive:false});
+  document.getElementById('tb-pause').addEventListener('click',togglePause);
+
+  // ─── Visibility ───────────────────────────────────
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){
+      Audio.stopMusic();
+      if(started&&!paused&&!gameOver){paused=true;showOvl('pause');}
+    } else {
+      if(started&&!paused&&!gameOver)Audio.startMusic();
+    }
+  });
+
+  // ─── Header controls ─────────────────────────────
+  document.getElementById('btn-sound').addEventListener('click',()=>{
+    const on=Audio.toggleSfx();
+    document.getElementById('btn-sound').textContent=on?'🔊':'🔇';
+    document.getElementById('btn-sound').classList.toggle('on',on);
+  });
+  let buttonsVisible=true;
+  document.getElementById('btn-buttons').addEventListener('click',()=>{
+    buttonsVisible=!buttonsVisible;
+    document.getElementById('touch-bar').classList.toggle('hidden',!buttonsVisible);
+    document.getElementById('btn-buttons').classList.toggle('on',buttonsVisible);
+  });
+  document.getElementById('btn-sound').classList.add('on');
+
+  // ─── Boot ────────────────────────────────────────
+  init();
+  makeOverlays();
+
+  (function applyLayout() {
+    const W = window.innerWidth, H = window.innerHeight;
+    const isPortrait = H > W;
+    const isNarrow   = W < 480;
+    document.body.classList.toggle('is-portrait',  isPortrait);
+    document.body.classList.toggle('is-landscape', !isPortrait);
+    document.body.classList.toggle('is-wide',   isPortrait && !isNarrow);
+    document.body.classList.toggle('is-narrow', isPortrait && isNarrow);
+  })();
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    resizeCanvas();
+    render();
+    renderHS();
+  }));
+
+  window.addEventListener('resize', resizeCanvas);
+
+  /*
+    AdMob integration points:
+    - Banner: <div id="ad-banner"> above #header, 50px, loaded by Android Activity
+    - Interstitial (game over): window.TetraxBridge?.showInterstitial()
+    - Rewarded (continue): window.TetraxBridge?.showRewarded()
+  */
+</script>
+</body>
+</html>
