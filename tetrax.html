@@ -1983,10 +1983,16 @@
   function startBgAnim() {
     const canvas = document.getElementById('start-bg');
     if(!canvas) return;
-    const ctx2 = canvas.getContext('2d');
-    canvas.width  = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    const W = canvas.width, H = canvas.height;
+
+    // Esperar a que el canvas tenga dimensiones reales
+    const tryStart = () => {
+      const W = canvas.offsetWidth;
+      const H = canvas.offsetHeight;
+      if(!W || !H) { requestAnimationFrame(tryStart); return; }
+
+      const ctx2 = canvas.getContext('2d');
+      canvas.width  = W;
+      canvas.height = H;
 
     const COLORS = ['#00E5FF','#FFE033','#CC44FF','#3DFF7A','#FF4B5C','#4D9FFF','#FF8C3D'];
     const CS = Math.max(18, Math.floor(W / 18)); // tamaño celda
@@ -2048,6 +2054,8 @@
       animId = requestAnimationFrame(drawBg);
     }
     drawBg();
+    }; // fin tryStart
+    requestAnimationFrame(tryStart);
   }
 
   function mkOvl(p,id,html){const el=document.createElement('div');el.className='ovl hidden';el.id='ovl-'+id;el.innerHTML=html;p.appendChild(el);return el;}
