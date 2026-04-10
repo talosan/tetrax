@@ -1618,34 +1618,55 @@
     return pal;
   }
 
+  // Canvas offscreen para cachear fondo + grid — solo se regenera al cambiar paleta
+  let bgCanvas = null, bgCtx = null, bgPalKey = '';
+
+  function renderBg(cssW, cssH, pal) {
+    const [br,bg,bb] = pal.bg;
+    const [gr,gg,gb] = pal.grid;
+    const [ar,ag,ab] = pal.accent;
+    const key = `${br},${bg},${bb},${gr},${gg},${gb},${cssW},${cssH}`;
+    if(bgPalKey === key) return; // sin cambios — no regenerar
+    bgPalKey = key;
+
+    if(!bgCanvas) { bgCanvas = document.createElement('canvas'); bgCtx = bgCanvas.getContext('2d'); }
+    bgCanvas.width = cssW; bgCanvas.height = cssH;
+
+    // Background
+    bgCtx.fillStyle = `rgb(${br},${bg},${bb})`;
+    bgCtx.fillRect(0, 0, cssW, cssH);
+
+    // Vignette radial
+    const vg = bgCtx.createRadialGradient(cssW/2,cssH/2,cssH*0.1,cssW/2,cssH/2,cssH*0.9);
+    vg.addColorStop(0, `rgba(${ar},${ag},${ab},0.07)`);
+    vg.addColorStop(1, `rgba(0,0,0,0.22)`);
+    bgCtx.fillStyle = vg;
+    bgCtx.fillRect(0, 0, cssW, cssH);
+
+    // Grid lines
+    bgCtx.strokeStyle = `rgba(${gr},${gg},${gb},0.055)`; bgCtx.lineWidth = 1;
+    for(let r=0;r<=ROWS;r++){bgCtx.beginPath();bgCtx.moveTo(0,r*CELL);bgCtx.lineTo(COLS*CELL,r*CELL);bgCtx.stroke();}
+    for(let c=0;c<=COLS;c++){bgCtx.beginPath();bgCtx.moveTo(c*CELL,0);bgCtx.lineTo(c*CELL,ROWS*CELL);bgCtx.stroke();}
+  }
+
   function render(dt=0){
     const cssW = gc.clientWidth, cssH = gc.clientHeight;
     if(!cssW)return;
 
     const pal = currentPalette(dt);
     const [br,bg,bb] = pal.bg;
-    const [gr,gg,gb] = pal.grid;
     const [ar,ag,ab] = pal.accent;
 
-    // Background
-    ctx.fillStyle=`rgb(${br},${bg},${bb})`; ctx.fillRect(0,0,cssW,cssH);
+    // Dibujar fondo cacheado — solo se regenera cuando cambia la paleta
+    renderBg(cssW, cssH, pal);
+    ctx.drawImage(bgCanvas, 0, 0);
 
-    // Subtle radial vignette from palette accent colour
-    const vg = ctx.createRadialGradient(cssW/2,cssH/2,cssH*0.1,cssW/2,cssH/2,cssH*0.9);
-    vg.addColorStop(0,`rgba(${ar},${ag},${ab},0.07)`);
-    vg.addColorStop(1,`rgba(0,0,0,0.22)`);
-    ctx.fillStyle=vg; ctx.fillRect(0,0,cssW,cssH);
-
+    // Danger mode overlay — dinámico, no se cachea
     if(dangerMode){
       const dg=ctx.createLinearGradient(0,0,0,ROWS*CELL*0.3);
       dg.addColorStop(0,'rgba(255,75,92,0.10)'); dg.addColorStop(1,'transparent');
       ctx.fillStyle=dg; ctx.fillRect(0,0,cssW,ROWS*CELL*0.3);
     }
-
-    // Grid lines tinted with palette colour
-    ctx.strokeStyle=`rgba(${gr},${gg},${gb},0.055)`; ctx.lineWidth=1;
-    for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*CELL);ctx.lineTo(COLS*CELL,r*CELL);ctx.stroke();}
-    for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*CELL,0);ctx.lineTo(c*CELL,ROWS*CELL);ctx.stroke();}
 
     board.forEach((row,ry)=>row.forEach((cell,cx)=>{if(cell)drawBlock(cx,ry,cell.col,cell.drk);}));
 
@@ -2019,8 +2040,8 @@
     }
 
     let animId;
-    function drawBg() {
-      // Solo dibujar si el overlay de inicio está visible
+    let lastBgFrame = 0;
+    function drawBg(now) {
       const ovl = document.getElementById('ovl-start');
       if(!ovl || ovl.classList.contains('hidden')) { cancelAnimationFrame(animId); return; }
 
