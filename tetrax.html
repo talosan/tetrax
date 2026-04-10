@@ -1039,6 +1039,7 @@
   ];
   const SPD=[380,310,245,190,165,145,128,114,102,92,84,77,71,66,62,58,55,53,51,50];
   const PTS=[0,100,300,500,800];
+  const LINES_PER_ROUND = 12;
   const KICKS={
     '0>1':[[-1,0],[-1,1],[0,-2],[-1,-2]],'1>0':[[1,0],[1,-1],[0,2],[1,2]],
     '1>2':[[1,0],[1,-1],[0,2],[1,2]],    '2>1':[[-1,0],[-1,1],[0,-2],[-1,-2]],
@@ -1142,6 +1143,7 @@
   // ─── State ───────────────────────────────────────
   let board, cur, nxt, hld, holdUsed;
   let score, level, lines, gameOver, paused, started;
+  let round = 1, linesInRound = 0, roundStartTime = 0;
   let combo=0, lockTmr=null, btbActive=false, dangerMode=false;
   let clearAnim = null;
   let gameOverAnim = null; // {progress:0, snapshot:board}
@@ -1157,7 +1159,7 @@
   function init() {
     board=mkBoard();bag=[];refill();refill();
     cur=pop();nxt=pop();hld=null;holdUsed=false;
-    score=0;level=1;lines=0;
+    score=0;level=1;lines=0;round=1;linesInRound=0;roundStartTime=performance.now();
     gameOver=false;paused=false;combo=0;btbActive=false;dangerMode=false;
     window._gameLevel=1;window._dangerMode=false;
     yAcc=0; xVisual=cur?cur.x:0; softDropActive=false;
@@ -1246,8 +1248,9 @@
   function showLevelUp(lv) {
     const ovl=document.getElementById('ovl-levelup');
     document.getElementById('lvlup-num').textContent=lv;
+    document.querySelector('.lvlup-label').textContent='ROUND';
     ovl.classList.add('show');
-    setTimeout(()=>ovl.classList.remove('show'),1000);
+    setTimeout(()=>ovl.classList.remove('show'),1200);
   }
 
   // ─── Game actions ────────────────────────────────
@@ -1326,7 +1329,6 @@
   }
 
   function addScore(n) {
-    const prevLvl=level;
     if(n>0){
       combo++;
       const isTetris=(n===4);
@@ -1339,37 +1341,71 @@
       score+=pts;
       showPop(n,pts,isBtb,combo);
       if(n>=2)shakeBoard();
+
+      lines+=n;
+      linesInRound+=n;
+
+      // Ronda completada
+      if(linesInRound >= LINES_PER_ROUND) {
+        linesInRound = LINES_PER_ROUND; // cap visual
+        updateUI();
+        setTimeout(()=>nextRound(), 800);
+        return;
+      }
     } else {
-      combo=0; if(n===0)btbActive=false;
+      combo=0; btbActive=false;
     }
-    lines+=n;
-    level=Math.min(Math.floor(lines/8)+1,20);
-    window._gameLevel=level;
-    if(level!==prevLvl){
-      Audio.play('levelUp');
-      showLevelUp(level);
-      bgTransition(level);
-      cleanBoardOnLevelUp();
+    updateUI();
+  }
+
+  function nextRound() {
+    Audio.play('levelUp');
+    Audio.stopMusic();
+
+    // Mostrar modal de éxito
+    document.getElementById('rc-round').textContent = round;
+    document.getElementById('rc-score').textContent = `+${score.toLocaleString()} pts`;
+    showOvl('roundcomplete');
+
+    // Anuncio cada 2 rondas — en el momento natural del modal
+    if(round % 2 === 0) {
+      setTimeout(()=>{ window.TetraxBridge?.showInterstitial(); }, 300);
     }
   }
 
-  function cleanBoardOnLevelUp() {
-    const mid = Math.floor(ROWS / 2);
-    // Contar filas ocupadas por encima de la mitad
-    let topFilled = 0;
-    for(let r = 0; r < mid; r++) {
-      if(board[r].some(c => c !== null)) topFilled++;
+  function startNextRound() {
+    hideOvl('roundcomplete');
+
+    round++;
+    level = Math.min(round, 20);
+    linesInRound = 0;
+    roundStartTime = performance.now();
+    window._gameLevel = level;
+
+    // Limpiar tablero con partículas
+    for(let r=0;r<ROWS;r++){
+      if(board[r].some(c=>c!==null)) spawnParticlesRow(r);
     }
-    if(topFilled === 0) return; // tablero está por debajo de la mitad, no hacer nada
-    // Eliminar todas las filas por encima de la mitad
-    // Reemplazarlas por filas vacías arriba
-    const below = board.slice(mid); // filas de la mitad hacia abajo, intactas
-    const empty = Array.from({length: mid}, () => Array(COLS).fill(null));
-    board = [...empty, ...below];
-    // Efecto visual — flash en las filas eliminadas
-    for(let r = 0; r < mid; r++) {
-      spawnParticlesRow(r);
+    board = mkBoard();
+    clearAnim = null;
+
+    // Añadir líneas de obstáculo desde la ronda 2
+    // Número de líneas = min(round-1, 4) — crece hasta máximo 4
+    const garbageCount = Math.min(round - 1, 4);
+    for(let i=0; i<garbageCount; i++) {
+      const hole = Math.floor(Math.random() * COLS);
+      const row = Array.from({length:COLS}, (_,c) => c===hole ? null : {col:'#444466', drk:'#222233'});
+      board.push(row);
+      board.shift();
     }
+
+    bgTransition(level);
+    Audio.startMusic();
+
+    cur=pop(); nxt=pop(); holdUsed=false;
+    yAcc=0; xVisual=cur.x;
+    updateUI();
+    showLevelUp(round);
   }
 
   function showPop(n,pts,btb,cmb) {
@@ -1487,82 +1523,85 @@
     return `rgb(${Math.round(a[0]+(b[0]-a[0])*t)},${Math.round(a[1]+(b[1]-a[1])*t)},${Math.round(a[2]+(b[2]-a[2])*t)})`;
   }
 
-  // ─── drawBlock: HD version with 3D bevel and rounded inner corners ──
-  function drawBlock(cx, cy, col, drk, a=1) {
-    const px = cx * CELL, py = cy * CELL, s = CELL;
-    const R = Math.max(2, s * 0.12); // corner radius scales with cell size
-    const gap = 1;                    // gap between blocks (border)
-    const x0 = px + gap, y0 = py + gap;
-    const w = s - gap*2, h = s - gap*2;
+  // ─── Block cache — renderiza cada color una sola vez en offscreen canvas ──
+  const blockCache = new Map();
+  let blockCacheCell = 0;
 
-    ctx.save();
-    ctx.globalAlpha = a;
+  function getBlockCanvas(col, drk) {
+    const key = `${col}_${CELL}`;
+    if(blockCacheCell !== CELL) { blockCache.clear(); blockCacheCell = CELL; }
+    if(blockCache.has(key)) return blockCache.get(key);
 
-    // 1 ── Dark background fill (inset shadow effect)
-    ctx.fillStyle = drk;
-    roundRect(ctx, x0, y0, w, h, R);
-    ctx.fill();
+    const s = CELL;
+    const bc = document.createElement('canvas');
+    bc.width = s; bc.height = s;
+    const bx = bc.getContext('2d');
+    const R = Math.max(2, s * 0.12);
+    const gap = 1, inset = gap + 2;
 
-    // 2 ── Main face fill with subtle vertical gradient (top lighter → bottom darker)
+    // 1 — Dark bg
+    bx.fillStyle = drk;
+    roundRectCtx(bx, gap, gap, s-gap*2, s-gap*2, R); bx.fill();
+
+    // 2 — Main gradient
     const [r,g,b] = hexRGB(col);
-    const grad = ctx.createLinearGradient(px, py, px, py+s);
-    grad.addColorStop(0,   mixRGB([r,g,b], [255,255,255], 0.22)); // top: 22% lighter
+    const grad = bx.createLinearGradient(0, 0, 0, s);
+    grad.addColorStop(0,   mixRGB([r,g,b],[255,255,255],0.22));
     grad.addColorStop(0.5, col);
-    grad.addColorStop(1,   mixRGB([r,g,b], [0,0,0], 0.28));       // bottom: 28% darker
-    const inset = gap + 2;
-    roundRect(ctx, px+inset, py+inset, s-inset*2, s-inset*2, Math.max(1, R-1));
-    ctx.fillStyle = grad;
-    ctx.fill();
+    grad.addColorStop(1,   mixRGB([r,g,b],[0,0,0],0.28));
+    roundRectCtx(bx, inset, inset, s-inset*2, s-inset*2, Math.max(1,R-1));
+    bx.fillStyle = grad; bx.fill();
 
-    // 3 ── Top highlight strip (bright glint across top edge)
-    const hiH = Math.max(3, s * 0.14);
+    // 3 — Top highlight
+    const hiH = Math.max(3, s*0.14);
+    bx.save();
+    roundRectCtx(bx, inset, inset, s-inset*2, hiH, Math.max(1,R-1)); bx.clip();
+    const hiG = bx.createLinearGradient(0, inset, 0, inset+hiH);
+    hiG.addColorStop(0,'rgba(255,255,255,0.42)'); hiG.addColorStop(1,'rgba(255,255,255,0.06)');
+    bx.fillStyle = hiG; bx.fillRect(inset, inset, s-inset*2, hiH);
+    bx.restore();
+
+    // 4 — Left highlight
+    bx.fillStyle = 'rgba(255,255,255,0.18)';
+    bx.fillRect(inset, inset, Math.max(2,s*0.07), s-inset*2);
+
+    // 5 — Bottom shadow
+    bx.fillStyle = 'rgba(0,0,0,0.35)';
+    bx.fillRect(inset, s-inset-Math.max(3,s*0.14), s-inset*2, Math.max(3,s*0.14));
+
+    // 6 — Right shadow
+    bx.fillStyle = 'rgba(0,0,0,0.25)';
+    bx.fillRect(s-inset-Math.max(2,s*0.08), inset, Math.max(2,s*0.08), s-inset*2);
+
+    // 7 — Glow stroke
+    bx.globalAlpha = 0.55;
+    bx.strokeStyle = shade(col, 30); bx.lineWidth = 0.8;
+    roundRectCtx(bx, gap+0.5, gap+0.5, s-gap*2-1, s-gap*2-1, R); bx.stroke();
+
+    blockCache.set(key, bc);
+    return bc;
+  }
+
+  function roundRectCtx(c, x, y, w, h, r) {
+    if(w < 2*r) r = w/2; if(h < 2*r) r = h/2;
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.arcTo(x+w,y,x+w,y+r,r);
+    c.lineTo(x+w,y+h-r); c.arcTo(x+w,y+h,x+w-r,y+h,r);
+    c.lineTo(x+r,y+h); c.arcTo(x,y+h,x,y+h-r,r);
+    c.lineTo(x,y+r); c.arcTo(x,y,x+r,y,r);
+    c.closePath();
+  }
+
+  // ─── drawBlock: usa cache ──────────────────────────────────────────────
+  function drawBlock(cx, cy, col, drk, a=1) {
+    const bc = getBlockCanvas(col, drk);
     ctx.save();
-    roundRect(ctx, px+inset, py+inset, s-inset*2, hiH, Math.max(1, R-1));
-    ctx.clip();
-    const hiGrad = ctx.createLinearGradient(0, py+inset, 0, py+inset+hiH);
-    hiGrad.addColorStop(0, `rgba(255,255,255,0.42)`);
-    hiGrad.addColorStop(1, `rgba(255,255,255,0.06)`);
-    ctx.fillStyle = hiGrad;
-    ctx.fillRect(px+inset, py+inset, s-inset*2, hiH);
-    ctx.restore();
-
-    // 4 ── Left edge highlight (thin strip)
-    const edgeW = Math.max(2, s * 0.07);
-    ctx.save();
-    roundRect(ctx, px+inset, py+inset, edgeW, s-inset*2, Math.max(1, R-1));
-    ctx.clip();
-    ctx.fillStyle = `rgba(255,255,255,0.18)`;
-    ctx.fillRect(px+inset, py+inset, edgeW, s-inset*2);
-    ctx.restore();
-
-    // 5 ── Bottom shadow strip
-    const shH = Math.max(3, s * 0.14);
-    ctx.save();
-    roundRect(ctx, px+inset, py+s-inset-shH, s-inset*2, shH, Math.max(1, R-1));
-    ctx.clip();
-    ctx.fillStyle = `rgba(0,0,0,0.35)`;
-    ctx.fillRect(px+inset, py+s-inset-shH, s-inset*2, shH);
-    ctx.restore();
-
-    // 6 ── Right shadow strip
-    const shW = Math.max(2, s * 0.08);
-    ctx.save();
-    roundRect(ctx, px+s-inset-shW, py+inset, shW, s-inset*2, Math.max(1, R-1));
-    ctx.clip();
-    ctx.fillStyle = `rgba(0,0,0,0.25)`;
-    ctx.fillRect(px+s-inset-shW, py+inset, shW, s-inset*2);
-    ctx.restore();
-
-    // 7 ── Outer edge glow stroke
-    ctx.globalAlpha = a * 0.55;
-    ctx.strokeStyle = shade(col, 30);
-    ctx.lineWidth = 0.8;
-    roundRect(ctx, x0+0.5, y0+0.5, w-1, h-1, R);
-    ctx.stroke();
-
+    if(a !== 1) ctx.globalAlpha = a;
+    ctx.drawImage(bc, cx * CELL, cy * CELL);
     ctx.restore();
   }
 
+  // ─── Helper: roundRect for offscreen contexts ─────────────────────────
   // Helper: draws a rounded rect path (reusable for clip + fill + stroke)
   function roundRect(c, x, y, w, h, r) {
     if(w < 2*r) r = w/2;
@@ -1851,23 +1890,24 @@
   // ─── UI ──────────────────────────────────────────
   function updateUI(){
     updateScore();
-    const inlvl = Math.max(0, lines - (level-1)*8);
-    document.getElementById('lvl-n').textContent=level;
-    document.getElementById('h-level').textContent=level;
-    document.getElementById('lvl-bar').style.width=Math.min(inlvl/8*100,100)+'%';
-    document.getElementById('lvl-hint').textContent=`${inlvl} / 8`;
-    document.querySelectorAll('.pip').forEach((p,i)=>p.classList.toggle('on',i<level));
-    document.getElementById('lines-n').textContent=lines;
+    // Progreso de la ronda actual
+    const roundProgress = Math.min(linesInRound / LINES_PER_ROUND * 100, 100);
+    document.getElementById('lvl-n').textContent=round;
+    document.getElementById('h-level').textContent=round;
+    document.getElementById('lvl-bar').style.width=roundProgress+'%';
+    document.getElementById('lvl-hint').textContent=`${linesInRound} / ${LINES_PER_ROUND}`;
+    document.querySelectorAll('.pip').forEach((p,i)=>p.classList.toggle('on',i<Math.min(level,10)));
+    document.getElementById('lines-n').textContent=linesInRound;
     document.getElementById('h-lines').textContent=lines;
     const cd=document.getElementById('combo-disp');
     if(combo>1){cd.textContent=`${combo}× COMBO`;cd.classList.toggle('hot',combo>=4);}
     else{cd.textContent='—';cd.classList.remove('hot');}
-    document.getElementById('lvl-n-p').textContent=level;
-    document.getElementById('lvl-bar-p').style.width=Math.min(inlvl/8*100,100)+'%';
-    document.getElementById('lvl-hint-p').textContent=`${inlvl} / 8`;
-    document.getElementById('lines-n-p').textContent=lines;
+    document.getElementById('lvl-n-p').textContent=round;
+    document.getElementById('lvl-bar-p').style.width=roundProgress+'%';
+    document.getElementById('lvl-hint-p').textContent=`${linesInRound} / ${LINES_PER_ROUND}`;
+    document.getElementById('lines-n-p').textContent=linesInRound;
 
-    // 3 next pieces — renderMini receives CSS size
+    // 3 next pieces
     [0,1,2].forEach(i=>{
       const p = i===0 ? nxt : new Piece(peek(i-1));
       const c = ncList[i];
@@ -1960,6 +2000,15 @@
       const el = document.getElementById('start-best');
       if(el){ el.style.display='block'; document.getElementById('start-best-val').textContent = bestScore.toLocaleString(); }
     }
+
+    ovls.roundcomplete=mkOvl(cw,'roundcomplete',`
+      <div style="text-align:center;">
+        <div class="ovl-title" style="color:var(--green);font-size:clamp(18px,3.5vw,32px);">✦ ROUND COMPLETE ✦</div>
+        <div id="rc-round" style="font-family:var(--font-display);font-size:clamp(48px,9vw,80px);font-weight:900;color:var(--orange);text-shadow:0 0 30px rgba(255,122,61,0.6);line-height:1;margin:8px 0;">1</div>
+        <div id="rc-score" style="font-size:clamp(14px,2.5vw,20px);color:var(--mid);margin-bottom:20px;letter-spacing:2px;"></div>
+        <button class="btn" id="ob-nextround" style="border-color:var(--green);color:var(--green);font-size:clamp(13px,2.5vw,16px);">▶ &nbsp;NEXT ROUND</button>
+      </div>`);
+    on('ob-nextround', startNextRound);
 
     ovls.pause=mkOvl(cw,'pause',`
       <div class="ovl-title" style="font-size:clamp(22px,4vw,40px);">${T.paused}</div>
@@ -2079,16 +2128,20 @@
   function showOvl(name){
     if(name==='gameover'){
       document.getElementById('go-score').textContent=score.toLocaleString();
-      document.getElementById('go-det').textContent=`${T.level} ${level} · ${lines} ${T.lines}`;
+      document.getElementById('go-det').textContent=`${T.level} ${round} · ${lines} ${T.lines}`;
       const btnContinue = document.getElementById('ob-continue');
       if(btnContinue){
         const available = window.TetraxBridge?.isRewardedReady?.() ?? false;
         btnContinue.style.display = available ? 'block' : 'none';
       }
     }
+    if(name==='roundcomplete') { paused=true; }
     Object.values(ovls).forEach(o=>o.classList.add('hidden'));ovls[name].classList.remove('hidden');
   }
-  function hideOvl(name){ovls[name].classList.add('hidden');}
+  function hideOvl(name){
+    ovls[name].classList.add('hidden');
+    if(name==='roundcomplete') { paused=false; prevFrameTime=0; requestAnimationFrame(loop); }
+  }
 
   // ─── Game loop ───────────────────────────────────
   // Architecture: yAcc accumulates fall progress [0..1) each frame.
@@ -2122,8 +2175,13 @@
 
     if(cur){
       // ── Gravity accumulator ───────────────────────
-      // dropSpeed = rows per second. SPD values are ms per row, so:
-      const dropSpeedRPS = 1000 / SPD[level-1]; // rows/sec at current level
+      // Velocidad progresiva dentro de la ronda:
+      // Empieza en SPD[level-1] y acelera gradualmente hasta SPD[level] al final
+      const spdBase = SPD[Math.max(0, level-1)];
+      const spdNext = SPD[Math.min(level, SPD.length-1)];
+      const roundProgress = Math.min(1, linesInRound / LINES_PER_ROUND);
+      const spdCurrent = spdBase + (spdNext - spdBase) * roundProgress;
+      const dropSpeedRPS = 1000 / spdCurrent;
       const effectiveSpeed = softDropActive
         ? dropSpeedRPS * SOFT_DROP_MULT
         : dropSpeedRPS;
