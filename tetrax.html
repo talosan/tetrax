@@ -1065,9 +1065,11 @@
   // Strategy: try every integer combination within bounds,
   // pick the one that maximises used area with CELL >= CELL_MIN.
   function computeGrid(availW, availH) {
-    // Tablero fijo 10x20 — estándar Tetris
-    // Solo el tamaño de celda se adapta a la pantalla disponible
-    const COLS_FIXED = 10, ROWS_FIXED = 20;
+    // Columnas siempre fijas a 10 — estándar Tetris
+    // Filas se adaptan según orientación para aprovechar mejor la pantalla
+    const COLS_FIXED = 10;
+    const isLandscape = availW > availH;
+    const ROWS_FIXED = isLandscape ? 16 : 20;
     const cellByW = Math.floor(availW / COLS_FIXED);
     const cellByH = Math.floor(availH / ROWS_FIXED);
     const cell    = Math.max(CELL_MIN, Math.min(cellByW, cellByH));
