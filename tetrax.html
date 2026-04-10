@@ -1064,11 +1064,8 @@
   // Compute best COLS×ROWS for the available area.
   // Strategy: try every integer combination within bounds,
   // pick the one that maximises used area with CELL >= CELL_MIN.
-  function computeGrid(availW, availH) {
-    // Columnas siempre fijas a 10 — estándar Tetris
-    // Filas se adaptan según orientación para aprovechar mejor la pantalla
+  function computeGrid(availW, availH, isLandscape) {
     const COLS_FIXED = 10;
-    const isLandscape = availW > availH;
     const ROWS_FIXED = isLandscape ? 16 : 20;
     const cellByW = Math.floor(availW / COLS_FIXED);
     const cellByH = Math.floor(availH / ROWS_FIXED);
@@ -1104,7 +1101,7 @@
       const availW = area.clientWidth - 4;
 
       const prev = { cols: COLS, rows: ROWS };
-      const grid = computeGrid(availW, availH);
+      const grid = computeGrid(availW, availH, !isPortrait);
       COLS = grid.cols;
       ROWS = grid.rows;
       CELL = grid.cell;
