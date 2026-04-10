@@ -86,17 +86,17 @@
     .hstat-val.green  { color:var(--green); }
 
     .hbtn {
-      width: clamp(32px,4vw,40px); height: clamp(32px,4vw,40px);
+      width: clamp(44px,5vw,56px); height: clamp(44px,5vw,56px);
       border-radius:8px;
       background:var(--panel); border:1px solid var(--bdr2);
-      color:var(--mid); font-size: clamp(13px,2vw,18px);
+      color:var(--mid); font-size: clamp(16px,2.5vw,22px);
       display:flex; align-items:center; justify-content:center;
       cursor:pointer; transition:background .1s, color .1s;
       touch-action:none; flex-shrink:0;
     }
     .hbtn:active { background:rgba(56,190,255,0.15); color:var(--white); }
     .hbtn.on { color:var(--accent); border-color:var(--accent); }
-    .hbtns { display:flex; gap:6px; flex-shrink:0; }
+    .hbtns { display:flex; gap:24px; flex-shrink:0; }
 
     /* ── BODY ── */
     #body { flex:1; min-height:0; display:flex; align-items:stretch; }
@@ -216,11 +216,11 @@
     }
 
     .btn {
-      font-family:var(--font-display); font-size:12px; font-weight:700; letter-spacing:4px;
-      padding:13px 40px; margin:5px; background:transparent;
+      font-family:var(--font-display); font-size:clamp(14px,2.5vw,18px); font-weight:700; letter-spacing:4px;
+      padding:16px 40px; margin:6px; background:transparent;
       border:1px solid var(--accent); color:var(--accent);
       cursor:pointer; text-transform:uppercase; border-radius:4px;
-      transition:background .12s, color .12s; min-width:200px; min-height:48px;
+      transition:background .12s, color .12s; min-width:200px; min-height:64px;
     }
     .btn:active { background:var(--accent); color:var(--bg); box-shadow:0 0 18px rgba(56,190,255,0.45); }
     .btn.o { border-color:var(--orange); color:var(--orange); }
@@ -229,7 +229,7 @@
     /* ── TOUCH BAR ── */
     #touch-bar {
       flex-shrink:0; display:flex; align-items:center; justify-content:center;
-      gap:6px; padding:7px 12px;
+      gap:24px; padding:10px 24px;
       background:rgba(12,17,30,0.97); border-top:1px solid var(--bdr);
       transition:max-height .3s, padding .3s, opacity .3s;
       overflow:hidden;
@@ -237,21 +237,21 @@
     #touch-bar.hidden { max-height:0 !important; padding:0 !important; opacity:0; }
 
     .tbtn {
-      height:50px; min-width:50px;
+      height:64px; min-width:64px;
       background:var(--panel); border:1px solid var(--bdr2); border-bottom:2px solid var(--bdr2);
-      border-radius:8px; color:var(--white); font-size:20px;
+      border-radius:8px; color:var(--white); font-size:24px;
       display:flex; align-items:center; justify-content:center;
       cursor:pointer; touch-action:none; transition:background .08s, transform .08s;
-      padding:0 8px;
+      padding:0 12px;
     }
     .tbtn:active { background:rgba(56,190,255,0.2); transform:scale(0.93); }
     .tbtn.accent { color:var(--accent); border-color:rgba(56,190,255,0.35); }
     .tbtn.orange { color:var(--orange); border-color:rgba(255,122,61,0.35); }
     .tbtn-drop {
-      flex:1; height:50px;
+      flex:1; height:64px;
       background:var(--panel); border:1px solid rgba(56,190,255,0.3); border-bottom:2px solid rgba(56,190,255,0.3);
       border-radius:8px; color:var(--accent);
-      font-family:var(--font-display); font-size:11px; font-weight:700; letter-spacing:3px;
+      font-family:var(--font-display); font-size:clamp(14px,2vw,18px); font-weight:700; letter-spacing:3px;
       display:flex; align-items:center; justify-content:center;
       cursor:pointer; touch-action:none; transition:background .08s;
     }
@@ -1065,24 +1065,13 @@
   // Strategy: try every integer combination within bounds,
   // pick the one that maximises used area with CELL >= CELL_MIN.
   function computeGrid(availW, availH) {
-    // Column range: 8–18, Row range: 16–26
-    const COL_MIN=8, COL_MAX=18, ROW_MIN=16, ROW_MAX=26;
-    let bestCols=10, bestRows=20, bestCell=0, bestArea=0;
-
-    for(let c=COL_MIN; c<=COL_MAX; c++){
-      for(let r=ROW_MIN; r<=ROW_MAX; r++){
-        const cellByW = Math.floor(availW / c);
-        const cellByH = Math.floor(availH / r);
-        const cell    = Math.min(cellByW, cellByH);
-        if(cell < CELL_MIN) continue;
-        const area = cell*c * cell*r; // total board area in px²
-        if(area > bestArea){
-          bestArea=area; bestCell=cell;
-          bestCols=c;    bestRows=r;
-        }
-      }
-    }
-    return { cols: bestCols, rows: bestRows, cell: bestCell };
+    // Tablero fijo 10x20 — estándar Tetris
+    // Solo el tamaño de celda se adapta a la pantalla disponible
+    const COLS_FIXED = 10, ROWS_FIXED = 20;
+    const cellByW = Math.floor(availW / COLS_FIXED);
+    const cellByH = Math.floor(availH / ROWS_FIXED);
+    const cell    = Math.max(CELL_MIN, Math.min(cellByW, cellByH));
+    return { cols: COLS_FIXED, rows: ROWS_FIXED, cell };
   }
 
   function resizeCanvas() {
@@ -1968,7 +1957,7 @@
       <button class="btn"   id="ob-retry">${T.playAgain}</button>
       <button class="btn o" id="ob-menu">${T.mainMenu}</button>`);
     on('ob-retry',()=>{hideOvl('gameover');startGame();});
-    on('ob-menu', ()=>{hideOvl('gameover');showOvl('start');init();render();startBgAnim();});
+    on('ob-menu', ()=>{hideOvl('gameover');showOvl('start');init();render();setTimeout(()=>startBgAnim(),50);});
     on('ob-continue', ()=>{ window.TetraxBridge?.showRewarded(); });
 
     // Mostrar botón continuar solo si el bridge está disponible
@@ -1980,15 +1969,22 @@
 
     ovls.start.classList.remove('hidden');
   }
+  let startBgAnimId = null; // ID del loop de animación de fondo
+
   function startBgAnim() {
     const canvas = document.getElementById('start-bg');
     if(!canvas) return;
 
-    // Esperar a que el canvas tenga dimensiones reales
+    // Cancelar animación anterior si existe
+    if(startBgAnimId) { cancelAnimationFrame(startBgAnimId); startBgAnimId = null; }
+
+    // Resetear dimensiones del canvas antes de arrancar
+    canvas.width = 0; canvas.height = 0;
+
     const tryStart = () => {
       const W = canvas.offsetWidth;
       const H = canvas.offsetHeight;
-      if(!W || !H) { requestAnimationFrame(tryStart); return; }
+      if(!W || !H) { startBgAnimId = requestAnimationFrame(tryStart); return; }
 
       const ctx2 = canvas.getContext('2d');
       canvas.width  = W;
@@ -2053,9 +2049,9 @@
       });
       animId = requestAnimationFrame(drawBg);
     }
-    drawBg();
+    startBgAnimId = requestAnimationFrame(drawBg);
     }; // fin tryStart
-    requestAnimationFrame(tryStart);
+    startBgAnimId = requestAnimationFrame(tryStart);
   }
 
   function mkOvl(p,id,html){const el=document.createElement('div');el.className='ovl hidden';el.id='ovl-'+id;el.innerHTML=html;p.appendChild(el);return el;}
