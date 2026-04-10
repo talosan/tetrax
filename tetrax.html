@@ -1065,12 +1065,23 @@
   // Strategy: try every integer combination within bounds,
   // pick the one that maximises used area with CELL >= CELL_MIN.
   function computeGrid(availW, availH, isLandscape) {
-    const COLS_FIXED = 10;
-    const ROWS_FIXED = isLandscape ? 16 : 20;
-    const cellByW = Math.floor(availW / COLS_FIXED);
-    const cellByH = Math.floor(availH / ROWS_FIXED);
-    const cell    = Math.max(CELL_MIN, Math.min(cellByW, cellByH));
-    return { cols: COLS_FIXED, rows: ROWS_FIXED, cell };
+    // Siempre 10 columnas — estándar Tetris
+    // Filas entre 16 y 20 — se elige el máximo que permita celdas razonables
+    const COLS = 10;
+    const ROW_MIN = 16, ROW_MAX = 20;
+    let bestRows = ROW_MAX, bestCell = 0;
+
+    for(let r = ROW_MAX; r >= ROW_MIN; r--) {
+      const cellByW = Math.floor(availW / COLS);
+      const cellByH = Math.floor(availH / r);
+      const cell    = Math.min(cellByW, cellByH);
+      if(cell > bestCell) {
+        bestCell = cell;
+        bestRows = r;
+      }
+    }
+    bestCell = Math.max(CELL_MIN, bestCell);
+    return { cols: COLS, rows: bestRows, cell: bestCell };
   }
 
   function resizeCanvas() {
